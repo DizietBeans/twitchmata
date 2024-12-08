@@ -150,15 +150,12 @@ namespace Twitchmata {
             eventSub.ChannelSubscribe -= EventSub_ChannelSubscribe;
             eventSub.ChannelSubscribe += EventSub_ChannelSubscribe;
 
-        }
-        internal override void PerformPostConnectionSetup()
-        {
             Logger.LogInfo("Creating EventSub subscriptions for SubscriberManager");
             var createSub = this.HelixEventSub.CreateEventSubSubscriptionAsync(
                 "channel.subscription.message",
                 "1",
                 new Dictionary<string, string> {
-                    { "broadcaster_user_id", this.Manager.ConnectionManager.BotID },
+                    { "broadcaster_user_id", this.Manager.ConnectionManager.ChannelID },
                 },
                 this.Connection.EventSub.SessionId,
                 this.Connection.ConnectionConfig.ClientID,
@@ -176,13 +173,13 @@ namespace Twitchmata {
                 "channel.subscribe",
                 "1",
                 new Dictionary<string, string> {
-                    { "broadcaster_user_id", this.Manager.ConnectionManager.BotID },
+                    { "broadcaster_user_id", this.Manager.ConnectionManager.ChannelID },
                 },
                 this.Connection.EventSub.SessionId,
                 this.Connection.ConnectionConfig.ClientID,
                 this.Manager.ConnectionManager.Secrets.AccountAccessToken
             );
-            TwitchManager.RunTask(createSub, (response) =>
+            TwitchManager.RunTask(createSub2, (response) =>
             {
                 Logger.LogInfo("channel.subscribe subscription created.");
             }, (ex) =>
@@ -190,6 +187,7 @@ namespace Twitchmata {
                 Logger.LogError(ex.ToString());
             });
         }
+
         private System.Threading.Tasks.Task EventSub_ChannelSubscriptionMessage(object sender, TwitchLib.EventSub.Websockets.Core.EventArgs.Channel.ChannelSubscriptionMessageArgs args)
         {
             var ev = args.Notification.Payload.Event;

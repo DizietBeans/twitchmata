@@ -1,12 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using TwitchLib.Api.Core.Extensions.System;
 using TwitchLib.EventSub.Websockets;
-using TwitchLib.PubSub.Events;
-using TwitchLib.Unity;
-using Twitchmata.Models;
-using UnityEditor.PackageManager;
 
 namespace Twitchmata {
     /// <summary>
@@ -97,17 +92,15 @@ namespace Twitchmata {
             Logger.LogInfo("Setting up ChatMessageManager with EventSub");
             eventSub.ChannelCheer -= EventSub_ChannelCheer;
             eventSub.ChannelCheer += EventSub_ChannelCheer;
-        }
-        internal override void PerformPostConnectionSetup()
-        {
+
             Logger.LogInfo("Creating EventSub subscriptions for BitsManager");
             var createSub = this.HelixEventSub.CreateEventSubSubscriptionAsync(
                 "channel.cheer",
                 "1",
                 new Dictionary<string, string> {
-                    { "broadcaster_user_id", this.Manager.ConnectionManager.BotID },
+                    { "broadcaster_user_id", this.Manager.ConnectionManager.ChannelID },
                 },
-                this.Connection.EventSub.SessionId,
+                eventSub.SessionId,
                 this.Connection.ConnectionConfig.ClientID,
                 this.Manager.ConnectionManager.Secrets.AccountAccessToken
             );

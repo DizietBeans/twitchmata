@@ -16,6 +16,7 @@ using TwitchLib.EventSub.Websockets.Core.EventArgs.Channel;
 
 namespace Twitchmata {
     public class ChannelPointManager : FeatureManager {
+
         #region Managed Rewards
         /// <summary>
         /// List of managed rewards keyed by their ID
@@ -212,6 +213,42 @@ namespace Twitchmata {
 
             eventSub.ChannelPointsCustomRewardRedemptionUpdate -= EventSub_ChannelPointsCustomRewardRedemptionUpdate;
             eventSub.ChannelPointsCustomRewardRedemptionUpdate += EventSub_ChannelPointsCustomRewardRedemptionUpdate;
+
+            Logger.LogInfo("Creating EventSub subscriptions for ChannelPointManager");
+            var createSub = this.HelixEventSub.CreateEventSubSubscriptionAsync(
+                "channel.channel_points_custom_reward_redemption.add",
+                "1",
+                new Dictionary<string, string> {
+                    { "broadcaster_user_id", this.Manager.ConnectionManager.ChannelID },
+                },
+                this.Connection.EventSub.SessionId,
+                this.Connection.ConnectionConfig.ClientID,
+                this.Manager.ConnectionManager.Secrets.AccountAccessToken
+            );
+            TwitchManager.RunTask(createSub, (response) =>
+            {
+                Logger.LogInfo("channel.channel_points_custom_reward_redemption.add subscription created.");
+            }, (ex) =>
+            {
+                Logger.LogError(ex.ToString());
+            });
+            var createSub2 = this.HelixEventSub.CreateEventSubSubscriptionAsync(
+                "channel.channel_points_custom_reward_redemption.update",
+                "1",
+                new Dictionary<string, string> {
+                    { "broadcaster_user_id", this.Manager.ConnectionManager.ChannelID },
+                },
+                this.Connection.EventSub.SessionId,
+                this.Connection.ConnectionConfig.ClientID,
+                this.Manager.ConnectionManager.Secrets.AccountAccessToken
+            );
+            TwitchManager.RunTask(createSub2, (response) =>
+            {
+                Logger.LogInfo("channel.channel_points_custom_reward_redemption.update subscription created.");
+            }, (ex) =>
+            {
+                Logger.LogError(ex.ToString());
+            });
         }
 
         private Task EventSub_ChannelPointsCustomRewardRedemptionUpdate(object sender, ChannelPointsCustomRewardRedemptionArgs args)
@@ -322,10 +359,6 @@ namespace Twitchmata {
                 User = this.UserManager.UserForChannelPointsRedeem(apiRedemption),
                 RedemptionID = apiRedemption.Id,
             };
-        }
-        
-        private void PubSub_RewardUpdated(object sender, OnRewardRedeemedArgs e) {
-
         }
 
         private ChannelPointRedemption RedemptionFromGetRedemptionResponse(RewardRedemption redemption) {

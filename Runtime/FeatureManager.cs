@@ -58,9 +58,11 @@ namespace Twitchmata {
         internal void InitializeWithAPIManager(ConnectionManager manager) {
             this.Connection = manager;
             this.InitializeFeatureManager();
-            this.InitializeEventSub(manager.EventSub);
-            //this.InitializePubSub(manager.PubSub);
-            //this.InitializeClient(manager.Client);
+            if (this.Connection.EventSub.SessionId != null)
+            {
+                this.InitializeEventSub(manager.EventSub);
+            }
+            this.InitializeClient(manager.Client);
         }
 
         internal virtual void InitializePubSub(PubSub pubSub) { }
@@ -69,10 +71,8 @@ namespace Twitchmata {
 
         internal virtual void InitializeEventSub(EventSubWebsocketClient eventSub) { }
         
-        //All feature managers set up by user are guaranteed to exist when these are called
+        //All feature managers set up by user are guaranteed to exist when this is called
         internal virtual void PerformPostDiscoverySetup() { }
-
-        internal virtual void PerformPostConnectionSetup() { }
 
         #endregion
     }

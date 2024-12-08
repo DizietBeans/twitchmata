@@ -3,21 +3,12 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using External.Twitchmata.Models;
-using Newtonsoft.Json;
-using TwitchLib.Api.Core;
-using TwitchLib.Api.Core.Enums;
-using TwitchLib.Api.Helix;
 using TwitchLib.Api.Helix.Models.Chat;
-using TwitchLib.Api.Helix.Models.EventSub;
-using TwitchLib.Client.Enums;
 using TwitchLib.Client.Events;
 using TwitchLib.Client.Models;
 using TwitchLib.EventSub.Websockets;
-using TwitchLib.Unity;
 using Twitchmata.Adapters.Models;
 using Twitchmata.Models;
-using Unity.VisualScripting.YamlDotNet.Core;
-using UnityEditor.PackageManager;
 using UnityEngine;
 
 namespace Twitchmata {
@@ -245,13 +236,11 @@ namespace Twitchmata {
         private Dictionary<string, RegisteredChatCommand> RegisteredCommands = new Dictionary<string, RegisteredChatCommand>();
 
         //In prep for if we want to replace Chat Bot (IRC Client) as well as PubSub
-        /*internal override void InitializeEventSub(EventSubWebsocketClient eventSub)
+        internal override void InitializeEventSub(EventSubWebsocketClient eventSub)
         {
-            Logger.LogInfo("Setting up ChatMessageManager with EventSub");
+           /* Logger.LogInfo("Setting up ChatMessageManager with EventSub");
             eventSub.ChannelChatMessage += EventSub_ChannelChatMessage;
-        }
-        internal override void PerformPostConnectionSetup()
-        {
+
             Logger.LogInfo("Creating EventSub subscriptions for ChatMessageManager");
             var createSub = this.HelixEventSub.CreateEventSubSubscriptionAsync(
                 "channel.chat.message",
@@ -270,8 +259,8 @@ namespace Twitchmata {
             }, (ex) =>
             {
                 Logger.LogError(ex.ToString());
-            });
-        }*/
+            });*/
+        }
 
         private System.Threading.Tasks.Task EventSub_ChannelChatMessage(object sender, TwitchLib.EventSub.Websockets.Core.EventArgs.Channel.ChannelChatMessageArgs args)
         {

@@ -1,16 +1,11 @@
 using System.Collections.Generic;
 using UnityEngine;
 using TwitchLib.Unity;
-using TwitchLib.PubSub.Events;
 using TwitchLib.Client.Models;
 using TwitchLib.Client.Events;
 using System;
 using TwitchLib.EventSub.Websockets;
 using System.Threading.Tasks;
-using TwitchLib.PubSub.Models.Responses;
-using static System.Net.WebRequestMethods;
-using TwitchLib.Api.Core.Interfaces;
-using TwitchLib.Api.Helix;
 using TwitchLib.Api.Core.RateLimiter;
 using TwitchLib.Api.Core.HttpCallHandlers;
 using Twitchmata.Adapters;
@@ -25,6 +20,8 @@ namespace Twitchmata {
         public EventSubWebsocketClient EventSub { get; private set; }
 
         public ConnectionConfig ConnectionConfig { get; private set; }
+
+        private bool manualDisconnectFlag = false;
 
         public string ChannelID {
             get { return this.UserManager.BroadcasterID; }
@@ -43,7 +40,7 @@ namespace Twitchmata {
                 return;
             }
             this.ConnectClient();
-            TwitchManager.RunTask(this.EventSub.ConnectAsync(/*new Uri("ws://localhost:8080/ws")*/), (response) =>
+            TwitchManager.RunTask(this.EventSub.ConnectAsync(), (response) =>
             {
                 Logger.LogInfo("Websocket connection request complete: " + response.ToString());
             }, (ex) =>
@@ -56,6 +53,7 @@ namespace Twitchmata {
         /// Disconnect from EventSub and Chat Bot
         /// </summary>
         public void Disconnect() {
+            this.manualDisconnectFlag = true;
             this.Client.Disconnect();
             TwitchManager.RunTask(this.EventSub.DisconnectAsync(), (response) =>
             {
@@ -91,15 +89,15 @@ namespace Twitchmata {
             this.SetupClient();
             this.UserManager = new UserManager(this);
         }
-        private void SetupClient()
-        {
+
+        private void SetupClient() {
             this.Client = new Client();
             this.Client.OnIncorrectLogin += Client_OnIncorrectLogin;
             this.Client.OnJoinedChannel += ClientOnJoinedChannel;
         }
         private void SetupEventSub()
         {
-            this.EventSub = new EventSubWebsocketClient();
+            this.EventSub = new EventSubWebsocketClient(/*"ws://localhost:8080/ws"*/);
             this.EventSub.WebsocketConnected += EventSub_WebsocketConnected;
             this.EventSub.WebsocketDisconnected += EventSub_WebsocketDisconnected;
             this.EventSub.WebsocketReconnected += EventSub_WebsocketReconnected;
@@ -107,14 +105,14 @@ namespace Twitchmata {
 
         }
 
+
         #region Connection
-        private void ConnectClient()
-        {
-            Logger.LogInfo("Connecting client: " + this.ConnectionConfig.BotName + " " + this.Secrets.BotAccessToken + " " + this.ConnectionConfig.ChannelName);
+
+        private void ConnectClient() {
+            Logger.LogInfo("Connecting client: "+ this.ConnectionConfig.BotName);
             ConnectionCredentials credentials = new ConnectionCredentials(this.ConnectionConfig.BotName, this.Secrets.BotAccessToken);
             this.Client.Initialize(credentials, this.ConnectionConfig.ChannelName);
-            foreach (FeatureManager manager in this.FeatureManagers)
-            {
+            foreach (FeatureManager manager in this.FeatureManagers) {
                 manager.InitializeClient(this.Client);
             }
             this.Client.Connect();
@@ -124,11 +122,10 @@ namespace Twitchmata {
 
 
         #region Client Management
-        private void Client_OnIncorrectLogin(object sender, OnIncorrectLoginArgs args)
-        {
-            Logger.LogInfo("Invalid bot login, need to re-authenticate");
-        }
 
+        private void Client_OnIncorrectLogin(object sender, OnIncorrectLoginArgs args) {
+            Logger.LogError("Invalid bot login, need to re-authenticate");
+        }
 
         private void ClientOnJoinedChannel(object sender, OnJoinedChannelArgs e) {
             Logger.LogInfo($"Joined Channel {e.Channel} with User {e.BotUsername}");
@@ -143,27 +140,39 @@ namespace Twitchmata {
         private Task EventSub_WebsocketReconnected(object sender, EventArgs args)
         {
             Logger.LogInfo("EventSub reconnected with session id " + this.EventSub.SessionId + ".");
-            foreach (FeatureManager manager in this.FeatureManagers)
+            /*foreach (FeatureManager manager in this.FeatureManagers)
             {
                 manager.InitializeEventSub(this.EventSub);
-                manager.PerformPostConnectionSetup();
-            }
+            }*/
             return Task.CompletedTask;
         }
 
         private Task EventSub_WebsocketDisconnected(object sender, EventArgs args)
         {
-            Logger.LogWarning("EventSub disconnected, requires reconnect and resubscription of events");
+            if (!manualDisconnectFlag)
+            {
+                Logger.LogWarning("EventSub disconnected, requires reconnect");
+                TwitchManager.RunTask(this.EventSub.ReconnectAsync(), (response) =>
+                {
+                    Logger.LogInfo("Websocket reconnection request complete: " + response.ToString());
+                }, (ex) =>
+                {
+                    Logger.LogError("Websocket reconnection error: " + ex.ToString());
+                });
+            }
             return Task.CompletedTask;
         }
 
         private Task EventSub_WebsocketConnected(object sender, TwitchLib.EventSub.Websockets.Core.EventArgs.WebsocketConnectedArgs args)
         {
+            this.manualDisconnectFlag = false;
             Logger.LogInfo("EventSub connected with session id " + this.EventSub.SessionId + ".");
-            foreach (FeatureManager manager in this.FeatureManagers)
+            if (!args.IsRequestedReconnect)
             {
-                manager.InitializeEventSub(this.EventSub);
-                manager.PerformPostConnectionSetup();
+                foreach (FeatureManager manager in this.FeatureManagers)
+                {
+                    manager.InitializeEventSub(this.EventSub);
+                }
             }
             return Task.CompletedTask;
         }
@@ -177,7 +186,6 @@ namespace Twitchmata {
 
         #region Feature Managers
         public List<FeatureManager> FeatureManagers { get; private set; } = new List<FeatureManager>();
-
         /// <summary>
         /// Register a feature manager with the connectino manager.
         /// </summary>
@@ -197,14 +205,6 @@ namespace Twitchmata {
             }
         }
 
-        public void PerformPostConnectionSetup()
-        {
-            var featureManagers = new List<FeatureManager>(this.FeatureManagers);
-            foreach (var featureManager in featureManagers)
-            {
-                featureManager.PerformPostConnectionSetup();
-            }
-        }
         #endregion
 
 

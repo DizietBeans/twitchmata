@@ -55,17 +55,14 @@ namespace Twitchmata {
             Logger.LogInfo("Initializing Follow Manager with EventSub");
             eventSub.ChannelFollow -= EventSub_ChannelFollow;
             eventSub.ChannelFollow += EventSub_ChannelFollow;
-        }
 
-        internal override void PerformPostConnectionSetup()
-        {
             Logger.LogInfo("Creating EventSub subscriptions for FollowManager");
             var createSub = this.HelixEventSub.CreateEventSubSubscriptionAsync(
                 "channel.follow",
-                "1",
+                "2",
                 new Dictionary<string, string> {
-                    { "broadcaster_user_id", this.Manager.ConnectionManager.BotID },
-                    { "moderator_user_id", this.Manager.ConnectionManager.BotID },
+                    { "broadcaster_user_id", this.Manager.ConnectionManager.ChannelID },
+                    { "moderator_user_id", this.Manager.ConnectionManager.ChannelID },
                 },
                 this.Connection.EventSub.SessionId,
                 this.Connection.ConnectionConfig.ClientID,

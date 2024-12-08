@@ -87,5 +87,20 @@ namespace Twitchmata.Models {
             return false;
         }
         #endregion
+
+
+        public override int GetHashCode()
+        {
+            return this.UserId.GetHashCode();
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj is User)
+            {
+                return this.UserId.Equals((obj as User).UserId);
+            }
+            return false;
+        }
     }
 }

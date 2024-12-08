@@ -121,7 +121,7 @@ namespace Twitchmata {
             {
                 return null;
             }
-            return this.ExistingOrNewUser(bitsRedeem.UserId, bitsRedeem.UserName, bitsRedeem.UserName);
+            return this.ExistingOrNewUser(bitsRedeem.UserId, bitsRedeem.UserLogin, bitsRedeem.UserName);
         }
 
         internal Models.User UserForRaidNotification(RaidNotification raidNotification) {
