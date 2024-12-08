@@ -5,12 +5,24 @@ using TwitchLib.PubSub.Events;
 using TwitchLib.Client.Models;
 using TwitchLib.Client.Events;
 using System;
+using TwitchLib.EventSub.Websockets;
+using System.Threading.Tasks;
+using TwitchLib.PubSub.Models.Responses;
+using static System.Net.WebRequestMethods;
+using TwitchLib.Api.Core.Interfaces;
+using TwitchLib.Api.Helix;
+using TwitchLib.Api.Core.RateLimiter;
+using TwitchLib.Api.Core.HttpCallHandlers;
+using Twitchmata.Adapters;
 
 namespace Twitchmata {
     public class ConnectionManager {
         public PubSub PubSub { get; private set; }
         public Api API { get; private set; }
         public Client Client { get; private set; }
+        public HelixEventSub HelixEventSub { get; private set; }
+
+        public EventSubWebsocketClient EventSub { get; private set; }
 
         public ConnectionConfig ConnectionConfig { get; private set; }
 
@@ -23,23 +35,35 @@ namespace Twitchmata {
         }
 
         /// <summary>
-        /// Connect to PubSub and Chat Bot
+        /// Connect to EventSub and Chat Bot
         /// </summary>
         public void Connect() {
             if (this.ChannelID == null) {
                 Logger.LogError("Channel ID not set, did you forget to call PerformSetup()?");
                 return;
             }
-            this.PubSub.Connect();
             this.ConnectClient();
+            TwitchManager.RunTask(this.EventSub.ConnectAsync(/*new Uri("ws://localhost:8080/ws")*/), (response) =>
+            {
+                Logger.LogInfo("Websocket connection request complete: " + response.ToString());
+            }, (ex) =>
+            {
+                Logger.LogError("Websocket connection error: " + ex.ToString());
+            });
         }
 
         /// <summary>
-        /// Disconnect from PubSub and Chat Bot
+        /// Disconnect from EventSub and Chat Bot
         /// </summary>
         public void Disconnect() {
-            this.PubSub.Disconnect();
             this.Client.Disconnect();
+            TwitchManager.RunTask(this.EventSub.DisconnectAsync(), (response) =>
+            {
+                Logger.LogInfo("Websocket disconnect request complete: " + response.ToString());
+            }, (ex) =>
+            {
+                Logger.LogError("Websocket disconnect error: " + ex.ToString());
+            });
         }
 
         /// <summary>
@@ -62,38 +86,34 @@ namespace Twitchmata {
         internal ConnectionManager(ConnectionConfig connectionConfig, Persistence secrets) {
             this.ConnectionConfig = connectionConfig;
             this.Secrets = secrets;
-            this.SetupAPIAndPubSub();
+            this.SetupAPI();
+            this.SetupEventSub();
             this.SetupClient();
             this.UserManager = new UserManager(this);
         }
-
-        private void SetupClient() {
+        private void SetupClient()
+        {
             this.Client = new Client();
             this.Client.OnIncorrectLogin += Client_OnIncorrectLogin;
+            this.Client.OnJoinedChannel += ClientOnJoinedChannel;
         }
-
-        
-
-        private void SetupAPIAndPubSub() {
-            this.API = new Api();
-            this.API.Settings.ClientId = this.ConnectionConfig.ClientID;
-            this.API.Settings.AccessToken = this.Secrets.AccountAccessToken;
-
-            this.PubSub = new PubSub();
-            this.PubSub.OnListenResponse += PubSub_OnListenResponse;
-            this.PubSub.OnPubSubServiceConnected += PubSub_OnPubSubServiceConnected;
-            this.PubSub.OnPubSubServiceClosed += PubSub_OnPubSubServiceClosed;
-            this.PubSub.OnPubSubServiceError += PubSub_OnPubSubServiceError;
+        private void SetupEventSub()
+        {
+            this.EventSub = new EventSubWebsocketClient();
+            this.EventSub.WebsocketConnected += EventSub_WebsocketConnected;
+            this.EventSub.WebsocketDisconnected += EventSub_WebsocketDisconnected;
+            this.EventSub.WebsocketReconnected += EventSub_WebsocketReconnected;
+            this.HelixEventSub = new HelixEventSub(this.API.Settings, BypassLimiter.CreateLimiterBypassInstance(), new TwitchHttpClient());
         }
-
 
         #region Connection
-
-        private void ConnectClient() {
-            Logger.LogInfo("Connecting client: "+ this.ConnectionConfig.BotName);
+        private void ConnectClient()
+        {
+            Logger.LogInfo("Connecting client: " + this.ConnectionConfig.BotName + " " + this.Secrets.BotAccessToken + " " + this.ConnectionConfig.ChannelName);
             ConnectionCredentials credentials = new ConnectionCredentials(this.ConnectionConfig.BotName, this.Secrets.BotAccessToken);
             this.Client.Initialize(credentials, this.ConnectionConfig.ChannelName);
-            foreach (FeatureManager manager in this.FeatureManagers) {
+            foreach (FeatureManager manager in this.FeatureManagers)
+            {
                 manager.InitializeClient(this.Client);
             }
             this.Client.Connect();
@@ -103,55 +123,56 @@ namespace Twitchmata {
 
 
         #region Client Management
+        private void Client_OnIncorrectLogin(object sender, OnIncorrectLoginArgs args)
+        {
+            Logger.LogInfo("Invalid bot login, need to re-authenticate");
+        }
 
-        private void Client_OnIncorrectLogin(object sender, OnIncorrectLoginArgs args) {
-            Logger.LogError("Invalid bot login, need to re-authenticate");
+        private void ClientOnJoinedChannel(object sender, OnJoinedChannelArgs e)
+        {
+            Logger.LogInfo($"Joined Channel {e.Channel} with User {e.BotUsername}");
         }
 
         #endregion
 
-
-        #region PubSub Management
-        private void PubSub_OnListenResponse(object sender, OnListenResponseArgs args) {
-            if (args.Successful == false) {
-                if (args.Response.Error == "ERR_BADAUTH") {
-                    Debug.Log("Invalid account login, need to re-authenticate");
-                } else {
-                    Debug.LogError("PubSub Error: " + args.Response.Error);
-                }
+        private Task EventSub_WebsocketReconnected(object sender, EventArgs args)
+        {
+            Logger.LogInfo("EventSub reconnected with session id " + this.EventSub.SessionId + ".");
+            foreach (FeatureManager manager in this.FeatureManagers)
+            {
+                manager.InitializeEventSub(this.EventSub);
+                manager.PerformPostConnectionSetup();
             }
+            return Task.CompletedTask;
         }
 
-        private void PubSub_OnPubSubServiceConnected(object sender, System.EventArgs args) {
-            Logger.LogInfo("PubSub Connected");
-            this.PubSub.SendTopics(this.Secrets.AccountAccessToken);
+        private Task EventSub_WebsocketDisconnected(object sender, EventArgs args)
+        {
+            Logger.LogWarning("EventSub disconnected, requires reconnect and resubscription of events");
+            return Task.CompletedTask;
         }
 
-        private void PubSub_OnPubSubServiceClosed(object sender, System.EventArgs args) {
-            Logger.LogInfo("PubSub Closed");
+        private Task EventSub_WebsocketConnected(object sender, TwitchLib.EventSub.Websockets.Core.EventArgs.WebsocketConnectedArgs args)
+        {
+            Logger.LogInfo("EventSub connected with session id " + this.EventSub.SessionId + ".");
+            foreach (FeatureManager manager in this.FeatureManagers)
+            {
+                manager.InitializeEventSub(this.EventSub);
+                manager.PerformPostConnectionSetup();
+            }
+            return Task.CompletedTask;
         }
 
-        private void PubSub_OnPubSubServiceError(object sender, OnPubSubServiceErrorArgs args) {
-            Logger.LogError("PubSub Error: " + args.Exception.Message);
+        private void SetupAPI()
+        {
+            this.API = new Api();
+            this.API.Settings.ClientId = this.ConnectionConfig.ClientID;
+            this.API.Settings.AccessToken = this.Secrets.AccountAccessToken;
         }
-
-        internal void PubSub_SendTestMessage(string topicName, System.Object messageObject) {
-            var jsonString = Newtonsoft.Json.JsonConvert.SerializeObject(new {
-                type = "MESSAGE",
-                data = new {
-                    topic = topicName,
-                    message = messageObject
-                }
-            });
-
-            this.PubSub.TestMessageParser(jsonString);
-        }
-
-        #endregion
-
 
         #region Feature Managers
         public List<FeatureManager> FeatureManagers { get; private set; } = new List<FeatureManager>();
+
         /// <summary>
         /// Register a feature manager with the connectino manager.
         /// </summary>
@@ -170,7 +191,31 @@ namespace Twitchmata {
                 featureManager.PerformPostDiscoverySetup();
             }
         }
+
+        public void PerformPostConnectionSetup()
+        {
+            var featureManagers = new List<FeatureManager>(this.FeatureManagers);
+            foreach (var featureManager in featureManagers)
+            {
+                featureManager.PerformPostConnectionSetup();
+            }
+        }
         #endregion
-        
+
+
+        internal void PubSub_SendTestMessage(string topicName, System.Object messageObject)
+        {
+            var jsonString = Newtonsoft.Json.JsonConvert.SerializeObject(new
+            {
+                type = "MESSAGE",
+                data = new
+                {
+                    topic = topicName,
+                    message = messageObject
+                }
+            });
+
+            this.PubSub.TestMessageParser(jsonString);
+        }
     }
 }
