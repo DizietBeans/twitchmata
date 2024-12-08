@@ -110,7 +110,7 @@ namespace Twitchmata {
         #region Connection
         private void ConnectClient()
         {
-            Logger.LogInfo("Connecting client: " + this.ConnectionConfig.BotName + " " + this.Secrets.BotAccessToken + " " + this.ConnectionConfig.ChannelName);
+            Logger.LogInfo("Connecting client: " + this.ConnectionConfig.BotName);
             ConnectionCredentials credentials = new ConnectionCredentials(this.ConnectionConfig.BotName, this.Secrets.BotAccessToken);
             this.Client.Initialize(credentials, this.ConnectionConfig.ChannelName);
             foreach (FeatureManager manager in this.FeatureManagers)
