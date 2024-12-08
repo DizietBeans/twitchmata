@@ -4,6 +4,7 @@ using TwitchLib.Unity;
 using TwitchLib.Client.Events;
 using TwitchLib.PubSub.Events;
 using UnityEngine;
+using TwitchLib.EventSub.Websockets;
 
 namespace Twitchmata {
     /// <summary>
