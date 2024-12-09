@@ -97,9 +97,7 @@ namespace Twitchmata {
             Logger.LogInfo("Setting up ChatMessageManager with EventSub");
             eventSub.ChannelCheer -= EventSub_ChannelCheer;
             eventSub.ChannelCheer += EventSub_ChannelCheer;
-        }
-        internal override void PerformPostConnectionSetup()
-        {
+
             Logger.LogInfo("Creating EventSub subscriptions for BitsManager");
             var createSub = this.HelixEventSub.CreateEventSubSubscriptionAsync(
                 "channel.cheer",
@@ -107,7 +105,7 @@ namespace Twitchmata {
                 new Dictionary<string, string> {
                     { "broadcaster_user_id", this.Manager.ConnectionManager.BotID },
                 },
-                this.Connection.EventSub.SessionId,
+                eventSub.SessionId,
                 this.Connection.ConnectionConfig.ClientID,
                 this.Manager.ConnectionManager.Secrets.AccountAccessToken
             );

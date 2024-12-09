@@ -1,16 +1,11 @@
 using System.Collections.Generic;
 using UnityEngine;
 using TwitchLib.Unity;
-using TwitchLib.PubSub.Events;
 using TwitchLib.Client.Models;
 using TwitchLib.Client.Events;
 using System;
 using TwitchLib.EventSub.Websockets;
 using System.Threading.Tasks;
-using TwitchLib.PubSub.Models.Responses;
-using static System.Net.WebRequestMethods;
-using TwitchLib.Api.Core.Interfaces;
-using TwitchLib.Api.Helix;
 using TwitchLib.Api.Core.RateLimiter;
 using TwitchLib.Api.Core.HttpCallHandlers;
 using Twitchmata.Adapters;
@@ -108,13 +103,11 @@ namespace Twitchmata {
         }
 
         #region Connection
-        private void ConnectClient()
-        {
-            Logger.LogInfo("Connecting client: " + this.ConnectionConfig.BotName);
+        private void ConnectClient() {
+            Logger.LogInfo("Connecting client: "+ this.ConnectionConfig.BotName);
             ConnectionCredentials credentials = new ConnectionCredentials(this.ConnectionConfig.BotName, this.Secrets.BotAccessToken);
             this.Client.Initialize(credentials, this.ConnectionConfig.ChannelName);
-            foreach (FeatureManager manager in this.FeatureManagers)
-            {
+            foreach (FeatureManager manager in this.FeatureManagers) {
                 manager.InitializeClient(this.Client);
             }
             this.Client.Connect();
@@ -124,11 +117,9 @@ namespace Twitchmata {
 
 
         #region Client Management
-        private void Client_OnIncorrectLogin(object sender, OnIncorrectLoginArgs args)
-        {
-            Logger.LogInfo("Invalid bot login, need to re-authenticate");
+        private void Client_OnIncorrectLogin(object sender, OnIncorrectLoginArgs args) {
+            Logger.LogError("Invalid bot login, need to re-authenticate");
         }
-
 
         private void ClientOnJoinedChannel(object sender, OnJoinedChannelArgs e) {
             Logger.LogInfo($"Joined Channel {e.Channel} with User {e.BotUsername}");
@@ -146,7 +137,6 @@ namespace Twitchmata {
             foreach (FeatureManager manager in this.FeatureManagers)
             {
                 manager.InitializeEventSub(this.EventSub);
-                manager.PerformPostConnectionSetup();
             }
             return Task.CompletedTask;
         }
@@ -163,7 +153,6 @@ namespace Twitchmata {
             foreach (FeatureManager manager in this.FeatureManagers)
             {
                 manager.InitializeEventSub(this.EventSub);
-                manager.PerformPostConnectionSetup();
             }
             return Task.CompletedTask;
         }
@@ -177,7 +166,6 @@ namespace Twitchmata {
 
         #region Feature Managers
         public List<FeatureManager> FeatureManagers { get; private set; } = new List<FeatureManager>();
-
         /// <summary>
         /// Register a feature manager with the connectino manager.
         /// </summary>
@@ -197,14 +185,6 @@ namespace Twitchmata {
             }
         }
 
-        public void PerformPostConnectionSetup()
-        {
-            var featureManagers = new List<FeatureManager>(this.FeatureManagers);
-            foreach (var featureManager in featureManagers)
-            {
-                featureManager.PerformPostConnectionSetup();
-            }
-        }
         #endregion
 
 
