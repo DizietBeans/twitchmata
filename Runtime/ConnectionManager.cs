@@ -86,8 +86,7 @@ namespace Twitchmata {
             this.SetupClient();
             this.UserManager = new UserManager(this);
         }
-        private void SetupClient()
-        {
+        private void SetupClient() {
             this.Client = new Client();
             this.Client.OnIncorrectLogin += Client_OnIncorrectLogin;
             this.Client.OnJoinedChannel += ClientOnJoinedChannel;
