@@ -102,7 +102,9 @@ namespace Twitchmata {
 
         }
 
+
         #region Connection
+
         private void ConnectClient() {
             Logger.LogInfo("Connecting client: "+ this.ConnectionConfig.BotName);
             ConnectionCredentials credentials = new ConnectionCredentials(this.ConnectionConfig.BotName, this.Secrets.BotAccessToken);
@@ -117,6 +119,7 @@ namespace Twitchmata {
 
 
         #region Client Management
+
         private void Client_OnIncorrectLogin(object sender, OnIncorrectLoginArgs args) {
             Logger.LogError("Invalid bot login, need to re-authenticate");
         }
