@@ -103,7 +103,7 @@ namespace Twitchmata {
                 "channel.cheer",
                 "1",
                 new Dictionary<string, string> {
-                    { "broadcaster_user_id", this.Manager.ConnectionManager.BotID },
+                    { "broadcaster_user_id", this.Manager.ConnectionManager.ChannelID },
                 },
                 eventSub.SessionId,
                 this.Connection.ConnectionConfig.ClientID,

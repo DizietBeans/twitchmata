@@ -218,7 +218,7 @@ namespace Twitchmata {
                 "channel.channel_points_custom_reward_redemption.add",
                 "1",
                 new Dictionary<string, string> {
-                    { "broadcaster_user_id", this.Manager.ConnectionManager.BotID },
+                    { "broadcaster_user_id", this.Manager.ConnectionManager.ChannelID },
                 },
                 this.Connection.EventSub.SessionId,
                 this.Connection.ConnectionConfig.ClientID,
