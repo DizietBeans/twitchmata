@@ -684,8 +684,8 @@
         },
         "runtime": {
           "lib/netstandard2.0/TwitchLib.EventSub.Core.Twitchmata.dll": {
-            "assemblyVersion": "3.2.6.0",
-            "fileVersion": "3.2.6.0"
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
           }
         }
       },
@@ -696,8 +696,8 @@
         },
         "runtime": {
           "lib/netstandard2.0/TwitchLib.EventSub.Core.Websockets.Twitchmata.dll": {
-            "assemblyVersion": "3.2.6.0",
-            "fileVersion": "3.2.6.0"
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
           }
         }
       },
