@@ -1,14 +1,6 @@
-using Codice.Client.BaseCommands.Merge;
-using PlasticGui;
 using System.Collections.Generic;
-using System.Drawing;
-using TwitchLib.Api.Core.Enums;
-using TwitchLib.Api.Helix.Models.Chat.Emotes;
-using TwitchLib.Api.Helix.Models.Moderation.GetModerators;
-using TwitchLib.Api.Helix.Models.Search;
 using TwitchLib.Client.Enums;
 using TwitchLib.Client.Models;
-using TwitchLib.Client.Models.Internal;
 using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 using Twitchmata.Models;
 

@@ -3,21 +3,12 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using External.Twitchmata.Models;
-using Newtonsoft.Json;
-using TwitchLib.Api.Core;
-using TwitchLib.Api.Core.Enums;
-using TwitchLib.Api.Helix;
 using TwitchLib.Api.Helix.Models.Chat;
-using TwitchLib.Api.Helix.Models.EventSub;
-using TwitchLib.Client.Enums;
 using TwitchLib.Client.Events;
 using TwitchLib.Client.Models;
 using TwitchLib.EventSub.Websockets;
-using TwitchLib.Unity;
 using Twitchmata.Adapters.Models;
 using Twitchmata.Models;
-using Unity.VisualScripting.YamlDotNet.Core;
-using UnityEditor.PackageManager;
 using UnityEngine;
 
 namespace Twitchmata {

@@ -1,12 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using TwitchLib.Api.Core.Extensions.System;
 using TwitchLib.EventSub.Websockets;
-using TwitchLib.PubSub.Events;
-using TwitchLib.Unity;
-using Twitchmata.Models;
-using UnityEditor.PackageManager;
 
 namespace Twitchmata {
     /// <summary>
