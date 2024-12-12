@@ -16,6 +16,7 @@ using TwitchLib.EventSub.Websockets.Core.EventArgs.Channel;
 
 namespace Twitchmata {
     public class ChannelPointManager : FeatureManager {
+
         #region Managed Rewards
         /// <summary>
         /// List of managed rewards keyed by their ID
@@ -235,7 +236,7 @@ namespace Twitchmata {
                 "channel.channel_points_custom_reward_redemption.update",
                 "1",
                 new Dictionary<string, string> {
-                    { "broadcaster_user_id", this.Manager.ConnectionManager.BotID },
+                    { "broadcaster_user_id", this.Manager.ConnectionManager.ChannelID },
                 },
                 this.Connection.EventSub.SessionId,
                 this.Connection.ConnectionConfig.ClientID,
