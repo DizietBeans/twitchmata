@@ -21,6 +21,8 @@ namespace Twitchmata {
 
         public ConnectionConfig ConnectionConfig { get; private set; }
 
+        private bool manualDisconnectFlag = false;
+
         public string ChannelID {
             get { return this.UserManager.BroadcasterID; }
         }
@@ -38,7 +40,7 @@ namespace Twitchmata {
                 return;
             }
             this.ConnectClient();
-            TwitchManager.RunTask(this.EventSub.ConnectAsync(/*new Uri("ws://localhost:8080/ws")*/), (response) =>
+            TwitchManager.RunTask(this.EventSub.ConnectAsync(), (response) =>
             {
                 Logger.LogInfo("Websocket connection request complete: " + response.ToString());
             }, (ex) =>
@@ -51,6 +53,7 @@ namespace Twitchmata {
         /// Disconnect from EventSub and Chat Bot
         /// </summary>
         public void Disconnect() {
+            this.manualDisconnectFlag = true;
             this.Client.Disconnect();
             TwitchManager.RunTask(this.EventSub.DisconnectAsync(), (response) =>
             {
@@ -94,7 +97,7 @@ namespace Twitchmata {
         }
         private void SetupEventSub()
         {
-            this.EventSub = new EventSubWebsocketClient();
+            this.EventSub = new EventSubWebsocketClient(/*"ws://localhost:8080/ws"*/);
             this.EventSub.WebsocketConnected += EventSub_WebsocketConnected;
             this.EventSub.WebsocketDisconnected += EventSub_WebsocketDisconnected;
             this.EventSub.WebsocketReconnected += EventSub_WebsocketReconnected;
@@ -137,25 +140,39 @@ namespace Twitchmata {
         private Task EventSub_WebsocketReconnected(object sender, EventArgs args)
         {
             Logger.LogInfo("EventSub reconnected with session id " + this.EventSub.SessionId + ".");
-            foreach (FeatureManager manager in this.FeatureManagers)
+            /*foreach (FeatureManager manager in this.FeatureManagers)
             {
                 manager.InitializeEventSub(this.EventSub);
-            }
+            }*/
             return Task.CompletedTask;
         }
 
         private Task EventSub_WebsocketDisconnected(object sender, EventArgs args)
         {
-            Logger.LogWarning("EventSub disconnected, requires reconnect and resubscription of events");
+            if (!manualDisconnectFlag)
+            {
+                Logger.LogWarning("EventSub disconnected, requires reconnect");
+                TwitchManager.RunTask(this.EventSub.ReconnectAsync(), (response) =>
+                {
+                    Logger.LogInfo("Websocket reconnection request complete: " + response.ToString());
+                }, (ex) =>
+                {
+                    Logger.LogError("Websocket reconnection error: " + ex.ToString());
+                });
+            }
             return Task.CompletedTask;
         }
 
         private Task EventSub_WebsocketConnected(object sender, TwitchLib.EventSub.Websockets.Core.EventArgs.WebsocketConnectedArgs args)
         {
+            this.manualDisconnectFlag = false;
             Logger.LogInfo("EventSub connected with session id " + this.EventSub.SessionId + ".");
-            foreach (FeatureManager manager in this.FeatureManagers)
+            if (!args.IsRequestedReconnect)
             {
-                manager.InitializeEventSub(this.EventSub);
+                foreach (FeatureManager manager in this.FeatureManagers)
+                {
+                    manager.InitializeEventSub(this.EventSub);
+                }
             }
             return Task.CompletedTask;
         }
