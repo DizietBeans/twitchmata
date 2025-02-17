@@ -174,7 +174,7 @@ namespace Twitchmata.Models {
 
         internal RewardRedemptionCallback Callback { get; set; }
 
-        internal UpdateCustomRewardRequest? UpdateRequestForDifferencesFrom(ManagedReward otherReward) {
+        internal UpdateCustomRewardRequest UpdateRequestForDifferencesFrom(ManagedReward otherReward) {
             var hasUpdated = false;
             var updateRequest = new UpdateCustomRewardRequest();
             if (this.Cost != otherReward.Cost) {

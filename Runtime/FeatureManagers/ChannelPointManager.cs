@@ -10,9 +10,13 @@ using TwitchLib.Api.Helix.Models.ChannelPoints.GetCustomReward;
 using System.Linq;
 using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward;
 using UnityEngine;
+using TwitchLib.EventSub.Websockets;
+using System.Threading.Tasks;
+using TwitchLib.EventSub.Websockets.Core.EventArgs.Channel;
 
 namespace Twitchmata {
     public class ChannelPointManager : FeatureManager {
+
         #region Managed Rewards
         /// <summary>
         /// List of managed rewards keyed by their ID
@@ -200,70 +204,142 @@ namespace Twitchmata {
          **************************************************/
 
         #region Internal
-        override internal void InitializePubSub(PubSub pubSub) {
-            Logger.LogInfo("Setting up Channel Points");
-            pubSub.OnChannelPointsRewardRedeemed -= PubSub_OnChannelPointsRewardRedeemed;
-            pubSub.OnChannelPointsRewardRedeemed += PubSub_OnChannelPointsRewardRedeemed;
-            //This is deprecated but is the only way to get notified of status updates with PubSub
-            pubSub.OnRewardRedeemed -= PubSub_RewardUpdated;
-            pubSub.OnRewardRedeemed += PubSub_RewardUpdated;
-            pubSub.ListenToChannelPoints(this.ChannelID);
-            pubSub.ListenToRewards(this.ChannelID);
+
+        internal override void InitializeEventSub(EventSubWebsocketClient eventSub)
+        {
+            Logger.LogInfo("Setting up channel points on EventSub");
+            eventSub.ChannelPointsCustomRewardRedemptionAdd -= EventSub_ChannelPointsCustomRewardRedemptionAdd;
+            eventSub.ChannelPointsCustomRewardRedemptionAdd += EventSub_ChannelPointsCustomRewardRedemptionAdd;
+
+            eventSub.ChannelPointsCustomRewardRedemptionUpdate -= EventSub_ChannelPointsCustomRewardRedemptionUpdate;
+            eventSub.ChannelPointsCustomRewardRedemptionUpdate += EventSub_ChannelPointsCustomRewardRedemptionUpdate;
+
+            Logger.LogInfo("Creating EventSub subscriptions for ChannelPointManager");
+            var createSub = this.HelixEventSub.CreateEventSubSubscriptionAsync(
+                "channel.channel_points_custom_reward_redemption.add",
+                "1",
+                new Dictionary<string, string> {
+                    { "broadcaster_user_id", this.Manager.ConnectionManager.ChannelID },
+                },
+                this.Connection.EventSub.SessionId,
+                this.Connection.ConnectionConfig.ClientID,
+                this.Manager.ConnectionManager.Secrets.AccountAccessToken
+            );
+            TwitchManager.RunTask(createSub, (response) =>
+            {
+                Logger.LogInfo("channel.channel_points_custom_reward_redemption.add subscription created.");
+            }, (ex) =>
+            {
+                Logger.LogError(ex.ToString());
+            });
+            var createSub2 = this.HelixEventSub.CreateEventSubSubscriptionAsync(
+                "channel.channel_points_custom_reward_redemption.update",
+                "1",
+                new Dictionary<string, string> {
+                    { "broadcaster_user_id", this.Manager.ConnectionManager.ChannelID },
+                },
+                this.Connection.EventSub.SessionId,
+                this.Connection.ConnectionConfig.ClientID,
+                this.Manager.ConnectionManager.Secrets.AccountAccessToken
+            );
+            TwitchManager.RunTask(createSub2, (response) =>
+            {
+                Logger.LogInfo("channel.channel_points_custom_reward_redemption.update subscription created.");
+            }, (ex) =>
+            {
+                Logger.LogError(ex.ToString());
+            });
+        }
+
+        private Task EventSub_ChannelPointsCustomRewardRedemptionUpdate(object sender, ChannelPointsCustomRewardRedemptionArgs args)
+        {
+            var ev = args.Notification.Payload.Event;
+            if (this.ManagedRewardsByID.ContainsKey(ev.Reward.Id) == false)
+            {
+                return Task.CompletedTask;
+            }
+
+            var reward = this.ManagedRewardsByID[ev.Reward.Id];
+            var task = this.HelixAPI.ChannelPoints.GetCustomRewardRedemptionAsync(this.ChannelID, ev.Reward.Id, new List<string>() { ev.Id });
+            TwitchManager.RunTask(task, (obj) => {
+                var responseRedemption = obj.Data[0];
+                var redemption = this.RedemptionFromGetRedemptionResponse(responseRedemption);
+                reward.HandleRedemption(redemption, responseRedemption.Status);
+            });
+            return Task.CompletedTask;
+        }
+
+        private System.Threading.Tasks.Task EventSub_ChannelPointsCustomRewardRedemptionAdd(object sender, TwitchLib.EventSub.Websockets.Core.EventArgs.Channel.ChannelPointsCustomRewardRedemptionArgs args)
+        {
+            var ev = args.Notification.Payload.Event;
+
+            var redemption = new ChannelPointRedemption()
+            {
+                RedeemedAt = ev.RedeemedAt.DateTime,
+                UserInput = ev.UserInput,
+                User = this.UserManager.UserForEventSubChannelPointsRedeem(ev),
+                RedemptionID = ev.Id,
+            };
+            if (this.UnmanagedRewards.ContainsKey(ev.Reward.Title))
+            {
+                this.UnmanagedRewards[ev.Reward.Title](redemption, this.CustomRewardRedemptionStatusFromString(ev.Status));
+                if (ev.Status == "fulfilled")
+                {
+                    this.UnmanagedRewardRedemptionsThisStream[ev.Reward.Title].Add(redemption);
+                }
+                return Task.CompletedTask;
+            }
+
+            if (this.ManagedRewardsByID.ContainsKey(ev.Reward.Id) == false)
+            {
+                return Task.CompletedTask;
+            }
+
+            var reward = this.ManagedRewardsByID[ev.Reward.Id];
+            redemption.Reward = reward;
+
+            if (redemption.User.IsPermitted(reward.Permissions) == false)
+            {
+                Logger.LogInfo("User not permitted");
+                this.CancelRedemption(redemption);
+                return Task.CompletedTask;
+            }
+
+            var lowercaseInputs = reward.ValidInputs.Select(input => input.ToLowerInvariant());
+            if (reward.RequiresUserInput && reward.ValidInputs.Count > 0 &&
+                lowercaseInputs.Contains(redemption.UserInput.ToLowerInvariant()) == false)
+            {
+                Logger.LogInfo("Invalid input entered: " + redemption.UserInput);
+                this.CancelRedemption(redemption);
+                return Task.CompletedTask; 
+            }
+
+            //Just make extra sure we don't redeem
+            if (ev.Status == "canceled")
+            {
+                reward.HandleRedemption(redemption, CustomRewardRedemptionStatus.CANCELED);
+                return Task.CompletedTask;
+            }
+
+            if (ev.Status == "unfulfilled")
+            {
+                if (reward.AutoFulfills == true)
+                {
+                    this.FulfillRedemption(redemption);
+                    return Task.CompletedTask;
+                }
+                reward.HandleRedemption(redemption, CustomRewardRedemptionStatus.UNFULFILLED);
+                return Task.CompletedTask;
+            }
+
+            reward.HandleRedemption(redemption, CustomRewardRedemptionStatus.FULFILLED);
+
+            return Task.CompletedTask;
         }
 
         internal override void PerformPostDiscoverySetup() {
             base.PerformPostDiscoverySetup();
             this.FetchRemoteManagedRewards();
-        }
-
-        private void PubSub_OnChannelPointsRewardRedeemed(object sender, OnChannelPointsRewardRedeemedArgs e) {
-            var apiRedemption = e.RewardRedeemed.Redemption;
-            var redemption = this.RedemptionFromAPIRedemption(apiRedemption);
-            if (this.UnmanagedRewards.ContainsKey(apiRedemption.Reward.Title)) {
-                this.UnmanagedRewards[apiRedemption.Reward.Title](redemption, this.CustomRewardRedemptionStatusFromString(apiRedemption.Status));
-                if (apiRedemption.Status == "FULFILLED") {
-                    this.UnmanagedRewardRedemptionsThisStream[apiRedemption.Reward.Title].Add(redemption);
-                }
-                return;
-            }
-
-            if (this.ManagedRewardsByID.ContainsKey(apiRedemption.Reward.Id) == false) {
-                return;
-            }
-
-            var reward = this.ManagedRewardsByID[apiRedemption.Reward.Id];
-            redemption.Reward = reward;
-
-            if (redemption.User.IsPermitted(reward.Permissions) == false) {
-                Logger.LogInfo("User not permitted");
-                this.CancelRedemption(redemption);
-                return;
-            }
-
-            var lowercaseInputs = reward.ValidInputs.Select(input => input.ToLowerInvariant());
-            if (reward.RequiresUserInput && reward.ValidInputs.Count > 0 &&
-                lowercaseInputs.Contains(redemption.UserInput.ToLowerInvariant()) == false) {
-                Logger.LogInfo("Invalid input entered: " + redemption.UserInput);
-                this.CancelRedemption(redemption);
-                return;
-            }
-
-            //Just make extra sure we don't redeem
-            if (apiRedemption.Status == "CANCELED") {
-                reward.HandleRedemption(redemption, CustomRewardRedemptionStatus.CANCELED);
-                return;
-            }
-
-            if (apiRedemption.Status == "UNFULFILLED") {
-                if (reward.AutoFulfills == true) {
-                    this.FulfillRedemption(redemption);
-                    return;
-                }
-                reward.HandleRedemption(redemption, CustomRewardRedemptionStatus.UNFULFILLED);
-                return;
-            }
-            
-            reward.HandleRedemption(redemption, CustomRewardRedemptionStatus.FULFILLED);
         }
 
         private CustomRewardRedemptionStatus CustomRewardRedemptionStatusFromString(string status) {
@@ -283,21 +359,6 @@ namespace Twitchmata {
                 User = this.UserManager.UserForChannelPointsRedeem(apiRedemption),
                 RedemptionID = apiRedemption.Id,
             };
-        }
-        
-        private void PubSub_RewardUpdated(object sender, OnRewardRedeemedArgs e) {
-            if ((e.Status != "ACTION_TAKEN") || (this.ManagedRewardsByID.ContainsKey(e.RewardId.ToString()) == false)) {
-                return;
-            }
-            
-            var reward = this.ManagedRewardsByID[e.RewardId.ToString()];
-
-            var task = this.HelixAPI.ChannelPoints.GetCustomRewardRedemptionAsync(this.ChannelID, e.RewardId.ToString(), new List<string>() { e.RedemptionId.ToString() });
-            TwitchManager.RunTask(task, (obj) => {
-                var responseRedemption = obj.Data[0];
-                var redemption = this.RedemptionFromGetRedemptionResponse(responseRedemption);
-                reward.HandleRedemption(redemption, responseRedemption.Status);
-            });
         }
 
         private ChannelPointRedemption RedemptionFromGetRedemptionResponse(RewardRedemption redemption) {

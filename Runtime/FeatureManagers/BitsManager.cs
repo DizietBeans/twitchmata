@@ -1,8 +1,7 @@
 using System;
 using System.Collections.Generic;
-using TwitchLib.Api.Core.Extensions.System;
-using TwitchLib.PubSub.Events;
-using TwitchLib.Unity;
+using System.Threading.Tasks;
+using TwitchLib.EventSub.Websockets;
 
 namespace Twitchmata {
     /// <summary>
@@ -43,22 +42,21 @@ namespace Twitchmata {
         /// <param name="userID">The id of the user</param>
         /// <param name="chatMessage">The message the user sent with the bits</param>
         public void Debug_SendBits(int bitsUsed = 100, string userName = "jwp", string userID = "95546976", string chatMessage = "Have some test bits") {
-            this.Connection.PubSub_SendTestMessage("channel-bits-events-v2.46024993", new {
-                data = new {
-                    user_name = userName,
-                    user_id = userID,
-                    channel_name = this.Connection.ConnectionConfig.ChannelName,
-                    channel_id = this.Connection.ChannelID,
-                    is_anonymous = false,
-                    time = DateTime.Now.ToRfc3339String(),
-                    bits_used = bitsUsed,
-                    chat_message = chatMessage,
-                    context = "cheer",
-                    message_id = Guid.NewGuid().ToString(),
-                    message_type = "bits_event",
-                    version = "1.0"
-                }
-            });
+
+            //There isn't a sending system in EventSub. Just trigger directly.
+            Models.User user = new Models.User(userID, userName, userName);
+            
+            var redemption = new Models.BitsRedemption()
+            {
+                BitsUsed = bitsUsed,
+                TotalBitsUsed = bitsUsed,
+                User = user,
+                RedeemedAt = DateTime.Now,
+                Message = chatMessage,
+            };
+
+            this.RedemptionsThisStream.Add(redemption);
+            this.ReceivedBits(redemption);
         }
 
         /// <summary>
@@ -67,20 +65,17 @@ namespace Twitchmata {
         /// <param name="bitsUsed">The number of bits to send</param>
         /// <param name="chatMessage">The message the user sent with the bits</param>
         public void Debug_SendAnonymousBits(int bitsUsed = 100, string chatMessage = "Have some test bits") {
-            this.Connection.PubSub_SendTestMessage("channel-bits-events-v2.46024993", new {
-                data = new {
-                    channel_name = this.Connection.ConnectionConfig.ChannelName,
-                    channel_id = this.Connection.ChannelID,
-                    is_anonymous = true,
-                    time = DateTime.Now.ToRfc3339String(),
-                    bits_used = bitsUsed,
-                    chat_message = chatMessage,
-                    context = "cheer",
-                    message_id = Guid.NewGuid().ToString(),
-                    message_type = "bits_event",
-                    version = "1.0"
-                }
-            });
+            var redemption = new Models.BitsRedemption()
+            {
+                BitsUsed = bitsUsed,
+                TotalBitsUsed = bitsUsed,
+                User = null,
+                RedeemedAt = DateTime.Now,
+                Message = chatMessage,
+            };
+
+            this.RedemptionsThisStream.Add(redemption);
+            this.ReceivedBits(redemption);
         }
 
         #endregion
@@ -91,30 +86,56 @@ namespace Twitchmata {
          **************************************************/
 
         #region Internal
-        override internal void InitializePubSub(PubSub pubSub) {
-            Logger.LogInfo("Initialising BitsManager");
-            pubSub.OnBitsReceivedV2 -= OnBitsReceived;
-            pubSub.OnBitsReceivedV2 += OnBitsReceived;
-            pubSub.ListenToBitsEventsV2(this.ChannelID);
+
+        internal override void InitializeEventSub(EventSubWebsocketClient eventSub)
+        {
+            Logger.LogInfo("Setting up ChatMessageManager with EventSub");
+            eventSub.ChannelCheer -= EventSub_ChannelCheer;
+            eventSub.ChannelCheer += EventSub_ChannelCheer;
+
+            Logger.LogInfo("Creating EventSub subscriptions for BitsManager");
+            var createSub = this.HelixEventSub.CreateEventSubSubscriptionAsync(
+                "channel.cheer",
+                "1",
+                new Dictionary<string, string> {
+                    { "broadcaster_user_id", this.Manager.ConnectionManager.ChannelID },
+                },
+                eventSub.SessionId,
+                this.Connection.ConnectionConfig.ClientID,
+                this.Manager.ConnectionManager.Secrets.AccountAccessToken
+            );
+            TwitchManager.RunTask(createSub, (response) =>
+            {
+                Logger.LogInfo("channel.cheer subscription created.");
+            }, (ex) =>
+            {
+                Logger.LogError(ex.ToString());
+            });
         }
 
-        private void OnBitsReceived(object sender, OnBitsReceivedV2Args bitsInfo) {
+        private System.Threading.Tasks.Task EventSub_ChannelCheer(object sender, TwitchLib.EventSub.Websockets.Core.EventArgs.Channel.ChannelCheerArgs args)
+        {
+            var ev = args.Notification.Payload.Event;
             Models.User user = null;
-            if ((bitsInfo.IsAnonymous == false) && (bitsInfo.UserId != null)) {
-                user = this.UserManager.UserForBitsRedeem(bitsInfo);
+            if ((ev.IsAnonymous == false) && (ev.UserId != null))
+            {
+                user = this.UserManager.UserForEventSubBitsRedeem(ev);
             }
 
-            var redemption = new Models.BitsRedemption() {
-                BitsUsed = bitsInfo.BitsUsed,
-                TotalBitsUsed = bitsInfo.TotalBitsUsed,
+            var redemption = new Models.BitsRedemption()
+            {
+                BitsUsed = ev.Bits,
+                TotalBitsUsed = ev.Bits, //Not available in EventSub? Annoying.
                 User = user,
-                RedeemedAt = bitsInfo.Time,
-                Message = bitsInfo.ChatMessage,
+                RedeemedAt = args.Notification.Metadata.MessageTimestamp,
+                Message = ev.Message,
             };
 
             this.RedemptionsThisStream.Add(redemption);
             this.ReceivedBits(redemption);
+            return Task.CompletedTask;
         }
+
         #endregion
 
     }

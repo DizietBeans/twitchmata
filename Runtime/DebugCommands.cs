@@ -33,7 +33,7 @@ namespace Twitchmata {
                 username = arguments[1];
             }
 
-            this.TwitchManager.GetFeatureManager<BitsManager>().Debug_SendBits(bitAmount);
+            this.TwitchManager.GetFeatureManager<BitsManager>().Debug_SendBits(bitAmount, user.UserName, user.UserId);
         }
         
         //!debug-follow <username>

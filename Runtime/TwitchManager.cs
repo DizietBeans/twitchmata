@@ -200,6 +200,16 @@ namespace Twitchmata {
                 featureManager.gameObject.SetActive(true);
             }
         }
+        private void OnDisable()
+        {
+            this.ConnectionManager.Disconnect();
+        }
+
+        private void OnApplicationQuit()
+        {
+            Logger.LogInfo("Disconnecting");
+            this.ConnectionManager.Disconnect();
+        }
     }
 }
 

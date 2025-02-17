@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using External.Twitchmata.Models;
 using TwitchLib.Api.Helix.Models.Chat;
 using TwitchLib.Client.Events;
 using TwitchLib.Client.Models;
-using TwitchLib.Unity;
+using TwitchLib.EventSub.Websockets;
+using Twitchmata.Adapters.Models;
 using Twitchmata.Models;
 using UnityEngine;
 
@@ -233,8 +235,55 @@ namespace Twitchmata {
         #region Internal
         private Dictionary<string, RegisteredChatCommand> RegisteredCommands = new Dictionary<string, RegisteredChatCommand>();
 
-        override internal void InitializeClient(Client client) {
-            Logger.LogInfo("Setting up Chat Command Manager");
+        //In prep for if we want to replace Chat Bot (IRC Client) as well as PubSub
+        internal override void InitializeEventSub(EventSubWebsocketClient eventSub)
+        {
+           /* Logger.LogInfo("Setting up ChatMessageManager with EventSub");
+            eventSub.ChannelChatMessage += EventSub_ChannelChatMessage;
+
+            Logger.LogInfo("Creating EventSub subscriptions for ChatMessageManager");
+            var createSub = this.HelixEventSub.CreateEventSubSubscriptionAsync(
+                "channel.chat.message",
+                "1",
+                new Dictionary<string, string> {
+                    { "broadcaster_user_id", this.Manager.ConnectionManager.BotID },
+                    { "user_id", this.Manager.ConnectionManager.BotID }
+                },
+                this.Connection.EventSub.SessionId,
+                this.Connection.ConnectionConfig.ClientID,
+                this.Manager.ConnectionManager.Secrets.AccountAccessToken
+            );
+            TwitchManager.RunTask(createSub, (response) =>
+            {
+                Logger.LogInfo("channel.chat.message subscription created.");
+            }, (ex) =>
+            {
+                Logger.LogError(ex.ToString());
+            });*/
+        }
+
+        private System.Threading.Tasks.Task EventSub_ChannelChatMessage(object sender, TwitchLib.EventSub.Websockets.Core.EventArgs.Channel.ChannelChatMessageArgs args)
+        {
+            var ev = args.Notification.Payload.Event;
+            var user = new User(ev.ChatterUserId, ev.ChatterUserLogin, ev.ChatterUserName);
+            user.ChatColor = this.UserManager.ColorForHex(ev.Color);
+            user.IsModerator = ev.IsModerator;
+            user.IsSubscriber = ev.IsSubscriber;
+            user.IsVIP = ev.IsVip;
+            user.IsBroadcaster = ev.IsBroadcaster;
+
+            var message = new ChatMessageAdapter(ev, user, this.Connection);
+            
+            foreach (var messageMatcher in this.MessageMatchers)
+            {
+                messageMatcher.HandleMessage(message.Wrapped, this.UserManager);
+            }
+            ChatMessageReceived(user, message.Wrapped);
+            return Task.CompletedTask;
+        }
+
+        override internal void InitializeClient(TwitchLib.Unity.Client client)
+        {
             client.OnChatCommandReceived -= Client_OnChatCommandReceived;
             client.OnChatCommandReceived += Client_OnChatCommandReceived;
 
@@ -242,29 +291,34 @@ namespace Twitchmata {
             client.OnMessageReceived += Client_OnMessageReceived;
         }
 
-        private void Client_OnMessageReceived(object sender, OnMessageReceivedArgs e) {
-            foreach (var messageMatcher in this.MessageMatchers) {
+        private void Client_OnMessageReceived(object sender, OnMessageReceivedArgs e)
+        {
+            foreach (var messageMatcher in this.MessageMatchers)
+            {
                 messageMatcher.HandleMessage(e.ChatMessage, this.UserManager);
             }
             var user = this.UserManager.UserForChatMessage(e.ChatMessage);
-            ChatMessageReceived(user ,e.ChatMessage);
+            ChatMessageReceived(user, e.ChatMessage);
         }
 
-        private void Client_OnChatCommandReceived(object sender, OnChatCommandReceivedArgs args) {
+        private void Client_OnChatCommandReceived(object sender, OnChatCommandReceivedArgs args)
+        {
             var command = args.Command;
-            if (this.RegisteredCommands.ContainsKey(command.CommandText.ToLower()) == false) {
+            if (this.RegisteredCommands.ContainsKey(command.CommandText.ToLower()) == false)
+            {
                 return;
             }
 
             var user = this.UserManager.UserForChatMessage(command.ChatMessage);
 
             var registeredCommand = this.RegisteredCommands[command.CommandText.ToLower()];
-            if (user.IsPermitted(registeredCommand.Permissions) == false) {
+            if (user.IsPermitted(registeredCommand.Permissions) == false)
+            {
                 this.SendChatMessage("You don't have permission to use this command");
                 return;
             }
 
-            registeredCommand.Callback.Invoke(command.ArgumentsAsList, user, args.Command.ChatMessage);
+            registeredCommand.Callback.Invoke(command.ArgumentsAsList, user, command.ChatMessage);
         }
         #endregion
 

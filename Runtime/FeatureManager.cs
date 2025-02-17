@@ -1,5 +1,7 @@
 ﻿using UnityEngine;
 using TwitchLib.Unity;
+using TwitchLib.EventSub.Websockets;
+using Twitchmata.Adapters;
 
 namespace Twitchmata {
 
@@ -32,6 +34,10 @@ namespace Twitchmata {
         public TwitchLib.Api.Helix.Helix HelixAPI {
             get { return this.Connection.API.Helix; }
         }
+        public HelixEventSub HelixEventSub
+        {
+            get { return this.Connection.HelixEventSub; }
+        }
 
         internal UserManager UserManager {
             get { return this.Connection.UserManager; }
@@ -52,16 +58,22 @@ namespace Twitchmata {
         internal void InitializeWithAPIManager(ConnectionManager manager) {
             this.Connection = manager;
             this.InitializeFeatureManager();
-            this.InitializePubSub(manager.PubSub);
+            if (this.Connection.EventSub.SessionId != null)
+            {
+                this.InitializeEventSub(manager.EventSub);
+            }
             this.InitializeClient(manager.Client);
         }
 
         internal virtual void InitializePubSub(PubSub pubSub) { }
 
         internal virtual void InitializeClient(Client client) { }
+
+        internal virtual void InitializeEventSub(EventSubWebsocketClient eventSub) { }
         
         //All feature managers set up by user are guaranteed to exist when this is called
         internal virtual void PerformPostDiscoverySetup() { }
+
         #endregion
     }
 

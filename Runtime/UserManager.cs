@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using TwitchLib.Api;
 using TwitchLib.Api.Helix.Models.ChannelPoints;
 using TwitchLib.Api.Helix.Models.Channels.GetChannelVIPs;
 using TwitchLib.Api.Helix.Models.Moderation.GetModerators;
 using TwitchLib.Client.Models;
+using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 using TwitchLib.PubSub.Events;
 using TwitchLib.PubSub.Models.Responses.Messages;
 using TwitchLib.PubSub.Models.Responses.Messages.Redemption;
@@ -112,6 +115,15 @@ namespace Twitchmata {
             return this.ExistingOrNewUser(bitsRedeem.UserId, bitsRedeem.UserName, bitsRedeem.UserName);
         }
 
+        internal Models.User UserForEventSubBitsRedeem(ChannelCheer bitsRedeem)
+        {
+            if (bitsRedeem.IsAnonymous)
+            {
+                return null;
+            }
+            return this.ExistingOrNewUser(bitsRedeem.UserId, bitsRedeem.UserLogin, bitsRedeem.UserName);
+        }
+
         internal Models.User UserForRaidNotification(RaidNotification raidNotification) {
             var user = this.ExistingOrNewUser(raidNotification.UserId, raidNotification.Login, raidNotification.DisplayName);
             user.IsModerator = raidNotification.Moderator;
@@ -134,7 +146,10 @@ namespace Twitchmata {
         internal Models.User UserForFollowNotification(OnFollowArgs followNotification) {
             return this.ExistingOrNewUser(followNotification.UserId, followNotification.Username, followNotification.DisplayName);
         }
-
+        internal Models.User UserForEventSubFollowNotification(ChannelFollow followNotification)
+        {
+            return this.ExistingOrNewUser(followNotification.UserId, followNotification.UserLogin, followNotification.UserName);
+        }
         internal Models.User UserForSubscriptionNotification(ChannelSubscription subscriptionNotification) {
             var subscription = new Models.Subscription();
             subscription.SubscribedMonthCount = subscriptionNotification.CumulativeMonths ?? 1;
@@ -160,10 +175,54 @@ namespace Twitchmata {
 
             return subscriber;
         }
+        internal Models.User UserForEventSubSubscriptionMessageNotification(ChannelSubscriptionMessage subscriptionNotification)
+        {
+            var subscription = new Models.Subscription();
+            subscription.SubscribedMonthCount = subscriptionNotification.CumulativeMonths;
+            subscription.StreakMonths = subscriptionNotification.StreakMonths ?? 1;
+            subscription.Tier = Subscription.TierForString(subscriptionNotification.Tier);
+            subscription.PlanName = "Channel Subscription (" + subscriptionNotification.BroadcasterUserLogin + ")"; //not present on EventSub notification
+
+
+            Models.User subscriber = null;
+            subscription.IsGift = false;
+            subscriber = this.ExistingOrNewUser(subscriptionNotification.UserId, subscriptionNotification.UserLogin, subscriptionNotification.UserName);
+
+            subscriber.IsSubscriber = true;
+            subscriber.Subscription = subscription;
+
+            return subscriber;
+        }
+        internal Models.User UserForEventSubSubscriptionGiftNotification(ChannelSubscribe subscriptionNotification, TwitchLib.Api.Helix.Models.Subscriptions.Subscription giftData)
+        {
+            var subscription = new Models.Subscription();
+
+            subscription.SubscribedMonthCount = 1; //can't get, frustrating
+            subscription.StreakMonths = 1; //ditto
+            subscription.Tier = Subscription.TierForString(subscriptionNotification.Tier);
+            subscription.PlanName = "Channel Subscription (" + subscriptionNotification.BroadcasterUserLogin + ")"; //not present on EventSub notification
+            
+            subscription.IsGift = subscriptionNotification.IsGift;
+            if (subscription.IsGift) {
+
+            }
+            Models.User subscriber = this.ExistingOrNewUser(subscriptionNotification.UserId, subscriptionNotification.UserLogin, subscriptionNotification.UserName);
+
+            subscriber.IsSubscriber = true;
+            subscriber.Subscription = subscription;
+
+            return subscriber;
+        }
 
         internal Models.User UserForChannelPointsRedeem(Redemption rewardRedemption) {
             return this.ExistingOrNewUser(rewardRedemption.User.Id, rewardRedemption.User.Login, rewardRedemption.User.DisplayName); ;
         }
+
+        internal Models.User UserForEventSubChannelPointsRedeem(ChannelPointsCustomRewardRedemption rewardRedemption)
+        {
+            return this.ExistingOrNewUser(rewardRedemption.UserId, rewardRedemption.UserLogin, rewardRedemption.UserName); ;
+        }
+
 
         internal Models.User UserForChannelPointsRedemptionResponse(RewardRedemption rewardRedemption) {
             return this.ExistingOrNewUser(rewardRedemption.UserId, rewardRedemption.UserLogin,
@@ -330,7 +389,7 @@ namespace Twitchmata {
             return username;
         }
 
-        private Color? ColorForHex(string hexString) {
+        public Color? ColorForHex(string hexString) {
             if (hexString.Length != 7) {
                 return null;
             }

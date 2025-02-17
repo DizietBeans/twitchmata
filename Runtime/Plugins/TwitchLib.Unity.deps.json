@@ -13,6 +13,8 @@
           "TwitchLib.Api": "3.9.0-preview-f7f2908",
           "TwitchLib.Client": "3.3.1",
           "TwitchLib.PubSub": "3.2.6",
+          "TwitchLib.EventSub.Core.Twitchmata": "1.0.0",
+	  "TwitchLib.EventSub.Core.Twitchmata.Websockets": "1.0.0",	
           "UnityEditor": "0.0.0.0"
         },
         "runtime": {
@@ -673,6 +675,29 @@
           "lib/netstandard2.0/TwitchLib.PubSub.dll": {
             "assemblyVersion": "3.2.6.0",
             "fileVersion": "3.2.6.0"
+          }
+        }
+      },
+      "TwitchLib.EventSub.Core.Twitchmata/1.0.0": {
+        "dependencies": {
+          "Newtonsoft.Json": "13.0.2",
+        },
+        "runtime": {
+          "lib/netstandard2.0/TwitchLib.EventSub.Core.Twitchmata.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "TwitchLib.EventSub.Core.Websockets.Twitchmata/1.0.0": {
+        "dependencies": {
+          "Newtonsoft.Json": "13.0.2",
+	  "TwitchLib.EventSub.Core.Twitchmata": "1.0.0"
+        },
+        "runtime": {
+          "lib/netstandard2.0/TwitchLib.EventSub.Core.Websockets.Twitchmata.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
           }
         }
       },

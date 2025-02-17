@@ -4,6 +4,10 @@ using TwitchLib.Unity;
 using Twitchmata.Models;
 using System;
 using TwitchLib.Api.Core.Extensions.System;
+using TwitchLib.EventSub.Websockets;
+using System.Threading.Tasks;
+using UnityEngine.UIElements;
+using TwitchLib.Api.Helix.Models.Subscriptions;
 
 namespace Twitchmata {
     /// <summary>
@@ -67,25 +71,17 @@ namespace Twitchmata {
             int streakMonths = 1,
             bool isResub = false,
             string message = "I just subscribed!"
-            ) {
-            this.Connection.PubSub_SendTestMessage("channel-subscribe-events-v1.44322889", new {
-                user_name = userName,
-                display_name = displayName,
-                user_id = userID,
-                channel_name = this.Connection.ConnectionConfig.ChannelName,
-                channel_id = this.Connection.ChannelID,
-                time = DateTime.Now.ToRfc3339String(),
-                sub_plan = Subscription.StringForTier(plan),
-                sub_plan_name = planName,
-                cumulative_months = cumulativeMonths,
-                streak_months = streakMonths,
-                context = isResub ? "resub" : "sub",
-                is_gift = false,
-                sub_message = new {
-                    message = message,
-                    emotes = new List<System.Object>() { }
-                }
-            });
+            ) 
+        {
+            var subscription = new Models.Subscription();
+            subscription.Tier = plan;
+            subscription.PlanName = planName;
+            subscription.SubscribedMonthCount = cumulativeMonths; 
+            subscription.StreakMonths = streakMonths;
+            subscription.IsGift = false;
+            var user = new Models.User(userID, userName, displayName);
+            user.Subscription = subscription;
+            user.IsSubscriber = true;
         }
 
         /// <summary>
@@ -113,26 +109,7 @@ namespace Twitchmata {
             int months = 1,
             string message = "I just gifted a sub!"
             ) {
-            this.Connection.PubSub_SendTestMessage("channel-subscribe-events-v1.44322889", new {
-                user_name = gifterUserName,
-                display_name = gifterDisplayName,
-                user_id = gifterUserID,
-                channel_name = this.Connection.ConnectionConfig.ChannelName,
-                channel_id = this.Connection.ChannelID,
-                time = DateTime.Now.ToRfc3339String(),
-                sub_plan = Subscription.StringForTier(plan),
-                sub_plan_name = planName,
-                months = months,
-                context = "subgift",
-                is_gift = true,
-                sub_message = new {
-                    message = message,
-                    emotes = new List<System.Object>() { }
-                },
-                recipient_id = recipientUserID,
-                recipient_user_name = recipientUserName,
-                recipient_display_name = recipientDisplayName
-            });
+            
         }
         
         /// <summary>
@@ -154,23 +131,7 @@ namespace Twitchmata {
             int months = 1,
             string message = "I just gifted a sub!"
             ) {
-            this.Connection.PubSub_SendTestMessage("channel-subscribe-events-v1.44322889", new {
-                channel_name = this.Connection.ConnectionConfig.ChannelName,
-                channel_id = this.Connection.ChannelID,
-                time = DateTime.Now.ToRfc3339String(),
-                sub_plan = Subscription.StringForTier(plan),
-                sub_plan_name = planName,
-                months = months,
-                context = "anonsubgift",
-                is_gift = true,
-                sub_message = new {
-                    message = message,
-                    emotes = new List<System.Object>() { }
-                },
-                recipient_id = recipientUserID,
-                recipient_user_name = recipientUserName,
-                recipient_display_name = recipientDisplayName
-            });
+            
         }
 
         #endregion
@@ -180,24 +141,82 @@ namespace Twitchmata {
          **************************************************/
 
         #region Internal
-        override internal void InitializePubSub(PubSub pubSub) {
+
+        internal override void InitializeEventSub(EventSubWebsocketClient eventSub)
+        {
             Logger.LogInfo("Setting up Subscriber Manager");
-            pubSub.OnChannelSubscription -= PubSub_OnChannelSubscription;
-            pubSub.OnChannelSubscription += PubSub_OnChannelSubscription;
-            pubSub.ListenToSubscriptions(this.ChannelID);
+            eventSub.ChannelSubscriptionMessage -= EventSub_ChannelSubscriptionMessage;
+            eventSub.ChannelSubscriptionMessage += EventSub_ChannelSubscriptionMessage;
+            eventSub.ChannelSubscribe -= EventSub_ChannelSubscribe;
+            eventSub.ChannelSubscribe += EventSub_ChannelSubscribe;
+
+            Logger.LogInfo("Creating EventSub subscriptions for SubscriberManager");
+            var createSub = this.HelixEventSub.CreateEventSubSubscriptionAsync(
+                "channel.subscription.message",
+                "1",
+                new Dictionary<string, string> {
+                    { "broadcaster_user_id", this.Manager.ConnectionManager.ChannelID },
+                },
+                this.Connection.EventSub.SessionId,
+                this.Connection.ConnectionConfig.ClientID,
+                this.Manager.ConnectionManager.Secrets.AccountAccessToken
+            );
+            TwitchManager.RunTask(createSub, (response) =>
+            {
+                Logger.LogInfo("channel.subscription.message subscription created.");
+            }, (ex) =>
+            {
+                Logger.LogError(ex.ToString());
+            });
+
+            var createSub2 = this.HelixEventSub.CreateEventSubSubscriptionAsync(
+                "channel.subscribe",
+                "1",
+                new Dictionary<string, string> {
+                    { "broadcaster_user_id", this.Manager.ConnectionManager.ChannelID },
+                },
+                this.Connection.EventSub.SessionId,
+                this.Connection.ConnectionConfig.ClientID,
+                this.Manager.ConnectionManager.Secrets.AccountAccessToken
+            );
+            TwitchManager.RunTask(createSub2, (response) =>
+            {
+                Logger.LogInfo("channel.subscribe subscription created.");
+            }, (ex) =>
+            {
+                Logger.LogError(ex.ToString());
+            });
         }
 
-        private void PubSub_OnChannelSubscription(object sender, OnChannelSubscriptionArgs arg) {
-            var user = this.UserManager.UserForSubscriptionNotification(arg.Subscription);
+        private System.Threading.Tasks.Task EventSub_ChannelSubscriptionMessage(object sender, TwitchLib.EventSub.Websockets.Core.EventArgs.Channel.ChannelSubscriptionMessageArgs args)
+        {
+            var ev = args.Notification.Payload.Event;
+            var user = this.UserManager.UserForEventSubSubscriptionMessageNotification(ev);
             this.SubscribersThisStream.Add(user);
-            if (user.Subscription?.IsGift == true) {
+            this.UserSubscribed(user);
+            return Task.CompletedTask;
+        }
+
+        private System.Threading.Tasks.Task EventSub_ChannelSubscribe(object sender, TwitchLib.EventSub.Websockets.Core.EventArgs.Channel.ChannelSubscribeArgs args)
+        {
+            var ev = args.Notification.Payload.Event;
+            if (ev.IsGift)
+            {
+                var subsTask = this.HelixAPI.Subscriptions.CheckUserSubscriptionAsync(ev.BroadcasterUserId, ev.UserId);
+                var subs = subsTask.Result.Data;
+                var sub = subs[0];
+                var user = this.UserManager.UserForEventSubSubscriptionGiftNotification(ev, sub);
+                this.SubscribersThisStream.Add(user);
                 var gifter = user.Subscription.Gifter;
-                if (this.GiftersThisStream.Contains(gifter) == false) {
+                if (this.GiftersThisStream.Contains(gifter) == false)
+                {
                     this.GiftersThisStream.Add(gifter);
                 }
+                this.UserSubscribed(user);
             }
-            this.UserSubscribed(user);
+            return Task.CompletedTask;
         }
+
         #endregion
     }
 }

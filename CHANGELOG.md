@@ -2,6 +2,10 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
+## [1.2] - 2025-02-17
+
+- PubSub integration replaced with EventSub for all FeatureManagers
+
 ## [1.1] - 2023-08-18
 
 ### Added

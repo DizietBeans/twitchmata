@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
+using TwitchLib.EventSub.Websockets;
 using TwitchLib.PubSub.Events;
 using TwitchLib.Unity;
 
@@ -47,18 +49,42 @@ namespace Twitchmata {
          **************************************************/
 
         #region Internal
-        override internal void InitializePubSub(PubSub pubSub) {
-            Logger.LogInfo("Initializing Follow Manager");
-            pubSub.OnFollow -= PubSub_OnFollow;
-            pubSub.OnFollow += PubSub_OnFollow;
-            pubSub.ListenToFollows(this.ChannelID);
+
+        internal override void InitializeEventSub(EventSubWebsocketClient eventSub)
+        {
+            Logger.LogInfo("Initializing Follow Manager with EventSub");
+            eventSub.ChannelFollow -= EventSub_ChannelFollow;
+            eventSub.ChannelFollow += EventSub_ChannelFollow;
+
+            Logger.LogInfo("Creating EventSub subscriptions for FollowManager");
+            var createSub = this.HelixEventSub.CreateEventSubSubscriptionAsync(
+                "channel.follow",
+                "2",
+                new Dictionary<string, string> {
+                    { "broadcaster_user_id", this.Manager.ConnectionManager.ChannelID },
+                    { "moderator_user_id", this.Manager.ConnectionManager.ChannelID },
+                },
+                this.Connection.EventSub.SessionId,
+                this.Connection.ConnectionConfig.ClientID,
+                this.Manager.ConnectionManager.Secrets.AccountAccessToken
+            );
+            TwitchManager.RunTask(createSub, (response) =>
+            {
+                Logger.LogInfo("channel.follow subscription created.");
+            }, (ex) =>
+            {
+                Logger.LogError(ex.ToString());
+            });
         }
 
-        private void PubSub_OnFollow(object sender, OnFollowArgs args) {
-            var user = this.UserManager.UserForFollowNotification(args);
+        private System.Threading.Tasks.Task EventSub_ChannelFollow(object sender, TwitchLib.EventSub.Websockets.Core.EventArgs.Channel.ChannelFollowArgs args)
+        {
+            var user = this.UserManager.UserForEventSubFollowNotification(args.Notification.Payload.Event);
             this.FollowsThisStream.Add(user);
             this.UserFollowed(user);
+            return Task.CompletedTask;
         }
+
         #endregion
     }
 }

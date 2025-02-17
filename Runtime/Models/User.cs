@@ -61,7 +61,7 @@ namespace Twitchmata.Models {
         /// <summary>
         /// Details of the user's subscription. Will be null if the user isn't subscribed. May also be null even if the user *is* subscribed.
         /// </summary>
-        public Subscription? Subscription { get; internal set; } = null;
+        public Subscription Subscription { get; internal set; } = null;
 
         
         public Color? ChatColor { get; internal set; } = null;
@@ -87,5 +87,20 @@ namespace Twitchmata.Models {
             return false;
         }
         #endregion
+
+
+        public override int GetHashCode()
+        {
+            return this.UserId.GetHashCode();
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj is User)
+            {
+                return this.UserId.Equals((obj as User).UserId);
+            }
+            return false;
+        }
     }
 }
