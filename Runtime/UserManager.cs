@@ -285,32 +285,35 @@ namespace Twitchmata {
             var channelID = this.ConnectionManager.Secrets.ChannelIDForChannel(channelName);
             if (channelID != null && channelID.Length > 0) {
                 this.BroadcasterID = channelID;
-                callback.Invoke();
                 this.FetchUserInfo();
                 this.FetchUserWithID(channelID, (user) => {
                     user.IsBroadcaster = true;
                 });
-            } else {
+                callback.Invoke();
+            }
+            else {
                 this.FetchUserWithUserName(channelName, (user) => {
                     user.IsBroadcaster = true;
                     this.ConnectionManager.Secrets.SetChannelIDForChannel(channelName, user.UserId);
                     this.BroadcasterID = user.UserId;
-                    callback.Invoke();
                     this.FetchUserInfo();
+                    callback.Invoke();
+
                 });
             }
-
-            
+         
         }
 
         internal void FetchBotInfo() {
             var botName = this.ConnectionManager.ConnectionConfig.BotName;
+
             if (botName == null || botName.Length == 0) {
                 return;
             }
 
             var botID = this.ConnectionManager.Secrets.ChannelIDForChannel(botName);
             if (botID != null && botID.Length > 0) {
+                
                 this.BotID = botID;
                 this.FetchUserWithID(botID, (user) => { });
             } else {
@@ -322,7 +325,6 @@ namespace Twitchmata {
 
 
         internal void FetchUserInfo() {
-            Logger.LogInfo("Fetching user info");
             this.FetchBotInfo();
             this.FetchNextSubscribers();
             this.FetchNextVIPs();

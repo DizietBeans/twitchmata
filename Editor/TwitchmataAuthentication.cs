@@ -79,11 +79,34 @@ namespace Twitchmata {
         private Label BotSuccessLabel;
         private Label BotErrorLabel;
 
+
+        string[] scopes = {
+            "moderator:read:chat_settings",
+            "moderator:manage:chat_settings",
+            "bits:read",
+            "moderator:read:followers",
+            "user:read:follows",
+            "user:read:chat",
+            "moderator:manage:shoutouts",
+            "moderator:manage:announcements",
+            "channel:read:subscriptions",
+            "channel:read:vips",
+            "moderator:read:chatters",
+            "channel:manage:raids",
+            "moderation:read",
+            "user:manage:whispers",
+            "chat:edit",
+            "chat:read",
+            "channel:moderate",
+            "channel:manage:redemptions",
+            "channel:read:redemptions"
+        };
+
         private string ChannelAuthState;
         private void OpenAuthenticateChannel(MouseUpEvent evt) {
             string clientID = this.TwitchManager.ConnectionConfig.ClientID;
             this.ChannelAuthState = Guid.NewGuid().ToString();
-            var loginURL = "https://id.twitch.tv/oauth2/authorize?response_type=token&client_id="+ clientID + "&redirect_uri=http://localhost:3000&scope=bits%3Aread+channel%3Aread%3Aredemptions+channel%3Amanage%3Aredemptions+channel%3Amoderate+chat%3Aread+chat%3Aedit+user%3Amanage%3Awhispers+moderation%3Aread+channel%3Amanage%3Araids+moderator%3Aread%3Achatters+channel%3Aread%3Avips+channel%3Aread%3Asubscriptions+moderator%3Amanage%3Aannouncements+moderator%3Amanage%3Ashoutouts+user%3Aread%3Achat+user%3Aread%3Afollows+moderator%3Aread%3Afollowers&force_verify=true&state=" + this.ChannelAuthState;
+            var loginURL = "https://id.twitch.tv/oauth2/authorize?response_type=token&client_id="+ clientID + "&redirect_uri=http://localhost:3000&scope=" + string.Join('+', scopes).Replace(":", "%3A") + "&force_verify=true&state=" + this.ChannelAuthState;
             Application.OpenURL(loginURL);
         }
 
@@ -91,7 +114,7 @@ namespace Twitchmata {
         private void OpenAuthenticateBot(MouseUpEvent evt) {
             string clientID = this.TwitchManager.ConnectionConfig.ClientID;
             this.BotAuthState = Guid.NewGuid().ToString();
-            var loginURL = "https://id.twitch.tv/oauth2/authorize?response_type=token&client_id=" + clientID + "&redirect_uri=http://localhost:3000&scope=bits%3Aread+channel%3Aread%3Aredemptions+channel%3Amanage%3Aredemptions+channel%3Amoderate+chat%3Aread+chat%3Aedit+user%3Amanage%3Awhispers+moderation%3Aread+channel%3Amanage%3Araids+moderator%3Aread%3Achatters+channel%3Aread%3Avips+channel%3Aread%3Asubscriptions+moderator%3Amanage%3Aannouncements+moderator%3Amanage%3Ashoutouts+user%3Aread%3Achat+user%3Aread%3Afollows+moderator%3Aread%3Afollowers&force_verify=true&state=" + this.BotAuthState;
+            var loginURL = "https://id.twitch.tv/oauth2/authorize?response_type=token&client_id=" + clientID + "&redirect_uri=http://localhost:3000&scope=" + string.Join('+', scopes).Replace(":", "%3A") + "&force_verify=true&state=" + this.BotAuthState;
             Application.OpenURL(loginURL);
         }
 

@@ -2,6 +2,10 @@
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
+## [1.3] - 2025-02-23
+
+- Added SetEmoteOnly utility function for all FeatureManagers
+
 ## [1.2] - 2025-02-17
 
 - PubSub integration replaced with EventSub for all FeatureManagers
