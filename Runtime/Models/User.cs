@@ -66,6 +66,10 @@ namespace Twitchmata.Models {
         
         public Color? ChatColor { get; internal set; } = null;
 
+        /// <summary>
+        /// The user's display name, shown in Twitch's UI
+        /// </summary>
+        public string ProfileImage { get; set; } = null;
 
         #region Permissions
         internal bool IsPermitted(Permissions permissions) {

@@ -5,6 +5,7 @@ using TwitchLib.Client.Events;
 using TwitchLib.PubSub.Events;
 using UnityEngine;
 using TwitchLib.EventSub.Websockets;
+using System.Threading.Tasks;
 
 namespace Twitchmata {
     /// <summary>
@@ -32,7 +33,7 @@ namespace Twitchmata {
         /// </summary>
         /// <param name="raid">Details of the outgoing raid</param>
         public virtual void RaidUpdated(Models.OutgoingRaidUpdate raid) {
-            Logger.LogInfo($"Preparing to raid {raid.RaidTarget.DisplayName} with {raid.ViewerCount} viewers");
+            Logger.LogInfo($"Preparing to raid {raid.RaidTarget.DisplayName} with {raid.ViewerCount} viewers ({raid.TargetProfileImage})");
         }
 
         /// <summary>
@@ -48,7 +49,7 @@ namespace Twitchmata {
         /// </summary>
         /// <param name="raid">Details of the cancelled raid</param>
         public virtual void RaidCancelled(Models.OutgoingRaidUpdate raid) {
-            Logger.LogInfo($"Cancelled raid of {raid.RaidTarget.DisplayName}");
+            Logger.LogInfo($"Cancelled raid of {raid.RaidTarget.DisplayName} ({raid.TargetProfileImage})");
         }
         
         #endregion
@@ -107,6 +108,7 @@ namespace Twitchmata {
         /// <param name="username">The username of the raiding channel</param>
         /// <param name="userID">The user ID of the raiding channel</param>
         public void Debug_IncomingRaid(int viewerCount = 20, string displayName = "TestChannel", string username = "testchannel", string userID = "123456") {
+            Logger.LogInfo("Debug incoming raid called");
             var channelName = "#" + this.Connection.ConnectionConfig.ChannelName;
             var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             var chatMessage = $"@badge-info=;badges=;color=#888888;display-name={displayName};emotes=;id={Guid.NewGuid().ToString()};login={username};mod=0;msg-id=raid;msg-param-displayName={displayName};msg-param-login={username};msg-param-viewerCount={viewerCount};room-id=33332222;subscriber=0;system-msg={viewerCount}\\sraiders\\sfrom\\s{displayName}\\shave\\sjoined\\n!;tmi-sent-ts={timestamp};turbo=0;user-id={userID};user-type= :tmi.twitch.tv USERNOTICE {channelName}";
@@ -137,19 +139,63 @@ namespace Twitchmata {
 
         #endregion
 
-
-        #region PubSub
-        //Cancelling a raid breaks all of PubSub so this is disabled for now
-        internal override void InitializePubSub(PubSub pubSub)
+        internal override void InitializeEventSub(EventSubWebsocketClient eventSub)
         {
-            Debug.Log("Setting Up Outgoing Raid Notifications");
-            pubSub.OnRaidUpdateV2 -= PubSub_OnRaidUpdate;
-            pubSub.OnRaidUpdateV2 += PubSub_OnRaidUpdate;
-            pubSub.OnRaidGo -= PubSub_OnRaidGo;
-            pubSub.OnRaidGo += PubSub_OnRaidGo;
-            pubSub.OnRaidCancel -= PubSub_OnRaidCancel;
-            pubSub.OnRaidCancel += PubSub_OnRaidCancel;
-            pubSub.ListenToRaid(this.ChannelID);
+            eventSub.ChannelModerate += EventSub_ChannelModerate;
+            if (!this.Connection.ChannelModerateSubscribed)
+            {
+                var createSub = this.HelixEventSub.CreateEventSubSubscriptionAsync(
+                    "channel.moderate",
+                    "2",
+                    new Dictionary<string, string> {
+                    { "broadcaster_user_id", this.Manager.ConnectionManager.ChannelID },
+                    { "moderator_user_id", this.Manager.ConnectionManager.ChannelID },
+                    },
+                    this.Connection.EventSub.SessionId,
+                    this.Connection.ConnectionConfig.ClientID,
+                    this.Manager.ConnectionManager.Secrets.AccountAccessToken
+                );
+                TwitchManager.RunTask(createSub, (response) =>
+                {
+                    Logger.LogInfo("channel.moderate subscription created for RaidManager.");
+                }, (ex) =>
+                {
+                    Logger.LogError(ex.ToString());
+                });
+                this.Connection.ChannelModerateSubscribed = true;
+            }
+        }
+
+        private Task EventSub_ChannelModerate(object sender, TwitchLib.EventSub.Websockets.Core.EventArgs.Channel.ChannelModerateArgs args)
+        {
+            if(args.Notification.Payload.Event.Action == "raid")
+            {
+                var infoFromArgs = args.Notification.Payload.Event.Raid;
+                this.UserManager.FetchUserWithID(infoFromArgs.UserId, (user) =>
+                {
+                    var raid = new Models.OutgoingRaidUpdate()
+                    {
+                        RaidTarget = user,
+                        TargetProfileImage = user.ProfileImage,
+                        ViewerCount = infoFromArgs.ViewerCount,
+                    };
+                    this.RaidUpdated(raid);
+                });
+            } else if(args.Notification.Payload.Event.Action == "unraid")
+            {
+                var infoFromArgs = args.Notification.Payload.Event.Unraid;
+                this.UserManager.FetchUserWithID(infoFromArgs.UserId, (user) =>
+                {
+                    var raid = new Models.OutgoingRaidUpdate()
+                    {
+                        RaidTarget = user,
+                        TargetProfileImage = user.ProfileImage,
+                        ViewerCount = 0,
+                    };
+                    this.RaidCancelled(raid);
+                });
+            }
+            return Task.CompletedTask;
         }
 
         private void PubSub_OnRaidCancel(object sender, OnRaidCancelArgs args) {
@@ -181,6 +227,5 @@ namespace Twitchmata {
             };
             this.RaidUpdated(raid);
         }
-        #endregion
     }
 }

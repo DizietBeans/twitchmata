@@ -1,6 +1,10 @@
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 using TwitchLib.EventSub.Websockets;
+using TwitchLib.EventSub.Websockets.Core.Models;
+using TwitchLib.EventSub.Websockets.Handler.Channel.Follows;
 using TwitchLib.PubSub.Events;
 using TwitchLib.Unity;
 
@@ -35,11 +39,32 @@ namespace Twitchmata {
 
         #region Debug
         public void Debug_NewFollow(string displayName = "JWP", string username = "jwp", string userID = "95546976") {
-            this.Connection.PubSub_SendTestMessage("following.000", new {
-                display_name = displayName,
-                username = username,
-                user_id = userID
-            });
+            var follow = new
+            {
+                user_id = userID,
+                user_name = displayName,
+                user_login = username,
+                broadcaster_user_id = "",
+                broadcaster_user_name = "",
+                broadcaster_user_login = "",
+                followed_at = "2020-12-09T16:09:53+00:00"
+            };
+            var arg = new
+            {
+                metadata = new
+                {
+                    message_id = "test",
+                    message_type = "",
+                    message_timestamp = "",
+                },
+                payload = new {
+                    @event = follow,
+                }
+            };
+            var argString = Newtonsoft.Json.JsonConvert.SerializeObject(arg);
+            var test = Newtonsoft.Json.JsonConvert.DeserializeObject<EventSubNotification<ChannelFollow>>(argString);
+            var handler = new ChannelFollowHandler();
+            handler.Handle(this.Connection.EventSub, argString);
         }
         #endregion
 
@@ -52,11 +77,9 @@ namespace Twitchmata {
 
         internal override void InitializeEventSub(EventSubWebsocketClient eventSub)
         {
-            Logger.LogInfo("Initializing Follow Manager with EventSub");
             eventSub.ChannelFollow -= EventSub_ChannelFollow;
             eventSub.ChannelFollow += EventSub_ChannelFollow;
 
-            Logger.LogInfo("Creating EventSub subscriptions for FollowManager");
             var createSub = this.HelixEventSub.CreateEventSubSubscriptionAsync(
                 "channel.follow",
                 "2",

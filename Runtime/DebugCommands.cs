@@ -12,6 +12,7 @@ namespace Twitchmata {
 
 
         private void SetupChatCommands() {
+            Logger.LogInfo("Setting up debug commands");
             var chatMessageManager = this.TwitchManager.GetFeatureManager<ChatMessageManager>();
             
             chatMessageManager.RegisterChatCommand("debug-bits", Permissions.Broadcaster, OnDebugBits);
@@ -33,7 +34,7 @@ namespace Twitchmata {
                 username = arguments[1];
             }
 
-            this.TwitchManager.GetFeatureManager<BitsManager>().Debug_SendBits(bitAmount, user.UserName, user.UserId);
+            this.TwitchManager.GetFeatureManager<BitsManager>().Debug_SendBits(bitAmount, username, user.UserId);
         }
         
         //!debug-follow <username>
@@ -119,12 +120,12 @@ namespace Twitchmata {
 
             this.TwitchManager.UserManager.FetchUserWithUserName(recipientUsername, recipient => {
                 if (gifterUsername == "anon") {
-                    this.TwitchManager.GetFeatureManager<SubscriberManager>().Debug_NewAnonymousGiftSubscription(recipient.DisplayName, recipient.UserName, recipient.UserId, tier);
+                    this.TwitchManager.GetFeatureManager<SubscriberManager>().Debug_NewAnonymousGiftSubscription(tier);
                     return;
                 }
 
                 this.TwitchManager.UserManager.FetchUserWithUserName(gifterUsername, gifter => {
-                    this.TwitchManager.GetFeatureManager<SubscriberManager>().Debug_NewGiftSubscription(gifter.DisplayName, gifter.UserName, gifter.UserId, recipient.DisplayName, recipient.UserName, recipient.UserId, tier);
+                    this.TwitchManager.GetFeatureManager<SubscriberManager>().Debug_NewGiftSubscription(gifter.DisplayName, gifter.UserName, gifter.UserId, tier);
                 });
             });
         }

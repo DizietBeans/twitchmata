@@ -148,6 +148,7 @@ namespace Twitchmata {
         /// <param name="reward">The reward to disable</param>
         public void DisableReward(ManagedReward reward) {
             if (reward.IsEnabled == false || reward.Id == null) {
+                Logger.LogWarning("Attempting to disable reward that is already not enabled: " + reward.Title);
                 return;
             }
             var request = new UpdateCustomRewardRequest();
@@ -207,14 +208,12 @@ namespace Twitchmata {
 
         internal override void InitializeEventSub(EventSubWebsocketClient eventSub)
         {
-            Logger.LogInfo("Setting up channel points on EventSub");
             eventSub.ChannelPointsCustomRewardRedemptionAdd -= EventSub_ChannelPointsCustomRewardRedemptionAdd;
             eventSub.ChannelPointsCustomRewardRedemptionAdd += EventSub_ChannelPointsCustomRewardRedemptionAdd;
 
             eventSub.ChannelPointsCustomRewardRedemptionUpdate -= EventSub_ChannelPointsCustomRewardRedemptionUpdate;
             eventSub.ChannelPointsCustomRewardRedemptionUpdate += EventSub_ChannelPointsCustomRewardRedemptionUpdate;
 
-            Logger.LogInfo("Creating EventSub subscriptions for ChannelPointManager");
             var createSub = this.HelixEventSub.CreateEventSubSubscriptionAsync(
                 "channel.channel_points_custom_reward_redemption.add",
                 "1",

@@ -23,6 +23,8 @@ namespace Twitchmata {
 
         private bool manualDisconnectFlag = false;
 
+        public bool ChannelModerateSubscribed { get; set; } = false;
+
         public string ChannelID {
             get { return this.UserManager.BroadcasterID; }
         }
@@ -42,10 +44,10 @@ namespace Twitchmata {
             this.ConnectClient();
             TwitchManager.RunTask(this.EventSub.ConnectAsync(), (response) =>
             {
-                Logger.LogInfo("Websocket connection request complete: " + response.ToString());
+                Logger.LogInfo("EventSub websocket connection request complete: " + response.ToString());
             }, (ex) =>
             {
-                Logger.LogError("Websocket connection error: " + ex.ToString());
+                Logger.LogError("EventSub websocket connection error: " + ex.ToString());
             });
         }
 
@@ -57,10 +59,10 @@ namespace Twitchmata {
             this.Client.Disconnect();
             TwitchManager.RunTask(this.EventSub.DisconnectAsync(), (response) =>
             {
-                Logger.LogInfo("Websocket disconnect request complete: " + response.ToString());
+                Logger.LogInfo("EventSub websocket disconnect request complete: " + response.ToString());
             }, (ex) =>
             {
-                Logger.LogError("Websocket disconnect error: " + ex.ToString());
+                Logger.LogError("EventSub websocket disconnect error: " + ex.ToString());
             });
         }
 
@@ -101,15 +103,21 @@ namespace Twitchmata {
             this.EventSub.WebsocketConnected += EventSub_WebsocketConnected;
             this.EventSub.WebsocketDisconnected += EventSub_WebsocketDisconnected;
             this.EventSub.WebsocketReconnected += EventSub_WebsocketReconnected;
+            this.EventSub.ErrorOccurred += EventSub_ErrorOccurred;
             this.HelixEventSub = new HelixEventSub(this.API.Settings, BypassLimiter.CreateLimiterBypassInstance(), new TwitchHttpClient());
 
+        }
+
+        private Task EventSub_ErrorOccurred(object sender, TwitchLib.EventSub.Websockets.Core.EventArgs.ErrorOccuredArgs args)
+        {
+            Logger.LogError("EventSub Error Occurred: " + args.Message + " \n " + args.Exception.Message + " \n " + args.Exception.InnerException.Message + "\n" + args.Exception.InnerException.StackTrace);
+            return Task.CompletedTask;
         }
 
 
         #region Connection
 
         private void ConnectClient() {
-            Logger.LogInfo("Connecting client: "+ this.ConnectionConfig.BotName);
             ConnectionCredentials credentials = new ConnectionCredentials(this.ConnectionConfig.BotName, this.Secrets.BotAccessToken);
             this.Client.Initialize(credentials, this.ConnectionConfig.ChannelName);
             foreach (FeatureManager manager in this.FeatureManagers) {
@@ -139,7 +147,7 @@ namespace Twitchmata {
 
         private Task EventSub_WebsocketReconnected(object sender, EventArgs args)
         {
-            Logger.LogInfo("EventSub reconnected with session id " + this.EventSub.SessionId + ".");
+            Logger.LogInfo("EventSub reconnected.");
             /*foreach (FeatureManager manager in this.FeatureManagers)
             {
                 manager.InitializeEventSub(this.EventSub);
@@ -154,10 +162,10 @@ namespace Twitchmata {
                 Logger.LogWarning("EventSub disconnected, requires reconnect");
                 TwitchManager.RunTask(this.EventSub.ReconnectAsync(), (response) =>
                 {
-                    Logger.LogInfo("Websocket reconnection request complete: " + response.ToString());
+                    Logger.LogInfo("EventSub websocket reconnection request complete: " + response.ToString());
                 }, (ex) =>
                 {
-                    Logger.LogError("Websocket reconnection error: " + ex.ToString());
+                    Logger.LogError("EventSub websocket reconnection error: " + ex.ToString());
                 });
             }
             return Task.CompletedTask;
@@ -166,7 +174,7 @@ namespace Twitchmata {
         private Task EventSub_WebsocketConnected(object sender, TwitchLib.EventSub.Websockets.Core.EventArgs.WebsocketConnectedArgs args)
         {
             this.manualDisconnectFlag = false;
-            Logger.LogInfo("EventSub connected with session id " + this.EventSub.SessionId + ".");
+            Logger.LogInfo("EventSub connected.");
             if (!args.IsRequestedReconnect)
             {
                 foreach (FeatureManager manager in this.FeatureManagers)

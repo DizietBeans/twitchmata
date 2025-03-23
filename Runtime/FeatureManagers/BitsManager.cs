@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using TwitchLib.EventSub.Websockets;
+using UnityEngine;
 
 namespace Twitchmata {
     /// <summary>
@@ -43,6 +44,7 @@ namespace Twitchmata {
         /// <param name="chatMessage">The message the user sent with the bits</param>
         public void Debug_SendBits(int bitsUsed = 100, string userName = "jwp", string userID = "95546976", string chatMessage = "Have some test bits") {
 
+            Debug.Log("Debug_SendBits called");
             //There isn't a sending system in EventSub. Just trigger directly.
             Models.User user = new Models.User(userID, userName, userName);
             
@@ -89,11 +91,9 @@ namespace Twitchmata {
 
         internal override void InitializeEventSub(EventSubWebsocketClient eventSub)
         {
-            Logger.LogInfo("Setting up ChatMessageManager with EventSub");
             eventSub.ChannelCheer -= EventSub_ChannelCheer;
             eventSub.ChannelCheer += EventSub_ChannelCheer;
 
-            Logger.LogInfo("Creating EventSub subscriptions for BitsManager");
             var createSub = this.HelixEventSub.CreateEventSubSubscriptionAsync(
                 "channel.cheer",
                 "1",

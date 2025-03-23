@@ -68,6 +68,7 @@ namespace Twitchmata {
                     return;
                 }
                 var user = this.ExistingOrNewUser(users[0].Id, users[0].Login, users[0].DisplayName);
+                user.ProfileImage = users[0].ProfileImageUrl;
                 action.Invoke(user);
             });
         }
@@ -87,6 +88,7 @@ namespace Twitchmata {
                     return;
                 }
                 var user = this.ExistingOrNewUser(users[0].Id, users[0].Login, users[0].DisplayName);
+                
                 action.Invoke(user);
             });
         }
@@ -99,7 +101,7 @@ namespace Twitchmata {
         **************************************************/
 
         #region Internal User-Creation Conveniences
-        private Models.User ExistingOrNewUser(string userID, string userName, string displayName) {
+        internal Models.User ExistingOrNewUser(string userID, string userName, string displayName) {
             var user = this.UserWithID(userID);
             if (user == null) {
                 user = new Models.User(userID, userName, displayName);
