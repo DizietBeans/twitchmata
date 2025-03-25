@@ -1,25 +1,7 @@
 using System.Collections.Generic;
-using TwitchLib.PubSub.Events;
-using TwitchLib.Unity;
 using Twitchmata.Models;
-using System;
-using TwitchLib.Api.Core.Extensions.System;
 using TwitchLib.EventSub.Websockets;
 using System.Threading.Tasks;
-using UnityEngine.UIElements;
-using TwitchLib.Api.Helix.Models.Subscriptions;
-using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
-using TwitchLib.EventSub.Websockets.Core.Models;
-using TwitchLib.EventSub.Websockets.Handler.Channel.Follows;
-using PlasticGui.Configuration.CloudEdition.Welcome;
-using TwitchLib.Api.Helix.Models.Bits;
-using TwitchLib.Api.Helix.Models.Search;
-using TwitchLib.Api.Helix;
-using TwitchLib.Client.Models;
-using UnityEditor.PackageManager.Requests;
-using UnityEngine;
-using static Codice.CM.Common.CmCallContext;
-using Unity.VisualScripting.YamlDotNet.Core.Tokens;
 using TwitchLib.EventSub.Websockets.Handler.Channel.Subscription;
 using TwitchLib.EventSub.Core.Models.Subscriptions;
 

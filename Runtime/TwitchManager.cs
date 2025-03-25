@@ -28,6 +28,8 @@ namespace Twitchmata {
             }
         }
 
+
+
         /// <summary>
         /// Resets Twitchmata, setting up FeatureManagers again and connecting to Twitch.
         /// </summary>
