@@ -62,8 +62,9 @@ namespace Twitchmata.Models {
         /// <summary>
         /// Creates a new managed reward. See the above properties for details on arguments.
         /// </summary>
-        public ManagedReward(string title, int cost, Permissions permissions = Permissions.Everyone, bool isEnabled = true) {
+        public ManagedReward(string title, string description, int cost, Permissions permissions = Permissions.Everyone, bool isEnabled = true) {
             this.Title = title;
+            this.Description = description;
             this.Cost = cost;
             this.IsEnabled = isEnabled;
             this.Permissions = permissions;
