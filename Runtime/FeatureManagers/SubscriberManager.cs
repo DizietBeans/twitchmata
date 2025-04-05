@@ -4,6 +4,8 @@ using TwitchLib.EventSub.Websockets;
 using System.Threading.Tasks;
 using TwitchLib.EventSub.Websockets.Handler.Channel.Subscription;
 using TwitchLib.EventSub.Core.Models.Subscriptions;
+using TwitchLib.Unity;
+
 
 namespace Twitchmata {
     /// <summary>
@@ -213,12 +215,59 @@ namespace Twitchmata {
 
         #region Internal
 
+        internal override void InitializeClient(Client client)
+        {
+            client.OnGiftedSubscription += Client_OnGiftedSubscription;
+        }
+
+        private void Client_OnGiftedSubscription(object sender, TwitchLib.Client.Events.OnGiftedSubscriptionArgs e)
+        {
+            this.UserManager.FetchUserWithID(e.GiftedSubscription.UserId, (gifter) =>
+            {
+                this.UserManager.FetchUserWithID(e.GiftedSubscription.MsgParamRecipientId, (user) =>
+                {
+                    this.SubscribersThisStream.Add(gifter);
+                    user.Subscription = new Models.Subscription();
+                    int months = 1;
+                    if (!int.TryParse(e.GiftedSubscription.MsgParamMonths, out months))
+                    {
+                        months = 1;
+                    }
+                    user.Subscription.SubscribedMonthCount = months;
+                    user.Subscription.IsGift = true;
+                    user.Subscription.Gifter = gifter;
+                    switch (e.GiftedSubscription.MsgParamSubPlan) {
+                        case TwitchLib.Client.Enums.SubscriptionPlan.Tier1:
+                            user.Subscription.Tier = SubscriptionTier.Tier1; 
+                            break;
+                        case TwitchLib.Client.Enums.SubscriptionPlan.Tier2:
+                            user.Subscription.Tier = SubscriptionTier.Tier2;
+                            break;
+                        case TwitchLib.Client.Enums.SubscriptionPlan.Tier3:
+                            user.Subscription.Tier = SubscriptionTier.Tier3;
+                            break;
+                        case TwitchLib.Client.Enums.SubscriptionPlan.Prime:
+                            user.Subscription.Tier = SubscriptionTier.Prime;
+                            break;
+                        default:
+                            user.Subscription.Tier = SubscriptionTier.NotSet;
+                            break;
+                    }
+                    user.Subscription.PlanName = e.GiftedSubscription.MsgParamSubPlanName;
+                    this.SubscribersThisStream.Add(user);
+                    this.UserSubscribed(user);
+                });
+            });
+        }
+
         internal override void InitializeEventSub(EventSubWebsocketClient eventSub)
         {
             eventSub.ChannelSubscriptionMessage -= EventSub_ChannelSubscriptionMessage;
             eventSub.ChannelSubscriptionMessage += EventSub_ChannelSubscriptionMessage;
             eventSub.ChannelSubscribe -= EventSub_ChannelSubscribe;
             eventSub.ChannelSubscribe += EventSub_ChannelSubscribe;
+            //eventSub.ChannelSubscriptionGift -= EventSub_ChannelSubscriptionGift;
+            //eventSub.ChannelSubscriptionGift += EventSub_ChannelSubscriptionGift;
 
             var createSub = this.HelixEventSub.CreateEventSubSubscriptionAsync(
                 "channel.subscription.message",
@@ -256,7 +305,7 @@ namespace Twitchmata {
                 Logger.LogError(ex.ToString());
             });
 
-            var createSub3 = this.HelixEventSub.CreateEventSubSubscriptionAsync(
+            /*var createSub3 = this.HelixEventSub.CreateEventSubSubscriptionAsync(
                 "channel.subscription.gift",
                 "1",
                 new Dictionary<string, string> {
@@ -272,7 +321,14 @@ namespace Twitchmata {
             }, (ex) =>
             {
                 Logger.LogError(ex.ToString());
-            });
+            });*/
+        }
+
+        private Task EventSub_ChannelSubscriptionGift(object sender, TwitchLib.EventSub.Websockets.Core.EventArgs.Channel.ChannelSubscriptionGiftArgs args)
+        {
+            var ev = args.Notification.Payload.Event;
+            Logger.LogInfo(ev.UserLogin + " just gave " + ev.Total.ToString() + " gifts.");
+            return Task.CompletedTask;
         }
 
         private System.Threading.Tasks.Task EventSub_ChannelSubscriptionMessage(object sender, TwitchLib.EventSub.Websockets.Core.EventArgs.Channel.ChannelSubscriptionMessageArgs args)
@@ -289,18 +345,9 @@ namespace Twitchmata {
             var ev = args.Notification.Payload.Event;
             if (ev.IsGift)
             {
-                var subsTask = this.HelixAPI.Subscriptions.CheckUserSubscriptionAsync(ev.BroadcasterUserId, ev.UserId);
-                var subs = subsTask.Result.Data;
-                var sub = subs[0];
-                var user = this.UserManager.UserForEventSubSubscriptionGiftNotification(ev, sub);
-                this.SubscribersThisStream.Add(user);
-                var gifter = user.Subscription.Gifter;
-                if (this.GiftersThisStream.Contains(gifter) == false)
-                {
-                    this.GiftersThisStream.Add(gifter);
-                }
-                this.UserSubscribed(user);
+                
             }
+            
             return Task.CompletedTask;
         }
 
