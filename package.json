@@ -1,6 +1,6 @@
 {
   "name": "me.pilky.twitchmata",
-  "version": "1.3.3",
+  "version": "1.3.4",
   "displayName": "Twitchmata",
   "description": "A wrapper for TwitchLib to simplify integrating Virtual Interactive Puppet Overlays with Twitch",
   "unity": "2022.1",

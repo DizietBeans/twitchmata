@@ -81,9 +81,9 @@ namespace Twitchmata {
                 return;
             }
             
-            this.TwitchManager.UserManager.FetchUserWithUserName(username, subscriber => {
-                this.TwitchManager.GetFeatureManager<SubscriberManager>().Debug_NewSubscription(subscriber.DisplayName, subscriber.UserName, subscriber.UserId, tier);
-            });
+            //this.TwitchManager.UserManager.FetchUserWithUserName(username, subscriber => {
+                this.TwitchManager.GetFeatureManager<SubscriberManager>().Debug_NewSubscription(username, username, username, tier);
+            //});
         }
 
         //!debug-gift-sub tier1|tier2|tier3|prime <recipient-username> <gifter-username>|anon
