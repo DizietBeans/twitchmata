@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using TwitchLib.EventSub.Websockets;
+using TwitchLib.Unity;
 using UnityEngine;
 
 namespace Twitchmata {
@@ -132,7 +133,10 @@ namespace Twitchmata {
             };
 
             this.RedemptionsThisStream.Add(redemption);
-            this.ReceivedBits(redemption);
+            ThreadDispatcher.Enqueue(() =>
+            {
+                this.ReceivedBits(redemption);
+            });
             return Task.CompletedTask;
         }
 

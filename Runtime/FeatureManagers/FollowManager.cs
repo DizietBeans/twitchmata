@@ -104,7 +104,10 @@ namespace Twitchmata {
         {
             var user = this.UserManager.UserForEventSubFollowNotification(args.Notification.Payload.Event);
             this.FollowsThisStream.Add(user);
-            this.UserFollowed(user);
+            ThreadDispatcher.Enqueue(() =>
+            {
+                this.UserFollowed(user);
+            });
             return Task.CompletedTask;
         }
 

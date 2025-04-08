@@ -263,7 +263,10 @@ namespace Twitchmata {
             TwitchManager.RunTask(task, (obj) => {
                 var responseRedemption = obj.Data[0];
                 var redemption = this.RedemptionFromGetRedemptionResponse(responseRedemption);
-                reward.HandleRedemption(redemption, responseRedemption.Status);
+                ThreadDispatcher.Enqueue(() =>
+                {
+                    reward.HandleRedemption(redemption, responseRedemption.Status);
+                });
             });
             return Task.CompletedTask;
         }
@@ -300,7 +303,10 @@ namespace Twitchmata {
             if (redemption.User.IsPermitted(reward.Permissions) == false)
             {
                 Logger.LogInfo("User not permitted");
-                this.CancelRedemption(redemption);
+                ThreadDispatcher.Enqueue(() =>
+                {
+                    this.CancelRedemption(redemption);
+                });
                 return Task.CompletedTask;
             }
 
@@ -309,14 +315,20 @@ namespace Twitchmata {
                 lowercaseInputs.Contains(redemption.UserInput.ToLowerInvariant()) == false)
             {
                 Logger.LogInfo("Invalid input entered: " + redemption.UserInput);
-                this.CancelRedemption(redemption);
+                ThreadDispatcher.Enqueue(() =>
+                {
+                    this.CancelRedemption(redemption);
+                });
                 return Task.CompletedTask; 
             }
 
             //Just make extra sure we don't redeem
             if (ev.Status == "canceled")
             {
-                reward.HandleRedemption(redemption, CustomRewardRedemptionStatus.CANCELED);
+                ThreadDispatcher.Enqueue(() =>
+                {
+                    reward.HandleRedemption(redemption, CustomRewardRedemptionStatus.CANCELED);
+                });
                 return Task.CompletedTask;
             }
 
@@ -327,11 +339,16 @@ namespace Twitchmata {
                     this.FulfillRedemption(redemption);
                     return Task.CompletedTask;
                 }
-                reward.HandleRedemption(redemption, CustomRewardRedemptionStatus.UNFULFILLED);
+                ThreadDispatcher.Enqueue(() =>
+                {
+                    reward.HandleRedemption(redemption, CustomRewardRedemptionStatus.UNFULFILLED);
+                });
                 return Task.CompletedTask;
             }
-
-            reward.HandleRedemption(redemption, CustomRewardRedemptionStatus.FULFILLED);
+            ThreadDispatcher.Enqueue(() =>
+            {
+                reward.HandleRedemption(redemption, CustomRewardRedemptionStatus.FULFILLED);
+            });
 
             return Task.CompletedTask;
         }

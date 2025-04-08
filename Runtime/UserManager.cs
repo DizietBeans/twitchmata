@@ -145,14 +145,14 @@ namespace Twitchmata {
             return this.ExistingOrNewUser(raidNotification.TargetChannelId, raidNotification.TargetLogin, raidNotification.TargetDisplayName);
         }
 
-        internal Models.User UserForFollowNotification(OnFollowArgs followNotification) {
+        internal Models.User PUBSUB_RETIRED_UserForFollowNotification(OnFollowArgs followNotification) {
             return this.ExistingOrNewUser(followNotification.UserId, followNotification.Username, followNotification.DisplayName);
         }
         internal Models.User UserForEventSubFollowNotification(ChannelFollow followNotification)
         {
             return this.ExistingOrNewUser(followNotification.UserId, followNotification.UserLogin, followNotification.UserName);
         }
-        internal Models.User UserForSubscriptionNotification(ChannelSubscription subscriptionNotification) {
+        internal Models.User PUBSUB_RETIRED_UserForSubscriptionNotification(ChannelSubscription subscriptionNotification) {
             var subscription = new Models.Subscription();
             subscription.SubscribedMonthCount = subscriptionNotification.CumulativeMonths ?? 1;
             subscription.StreakMonths = subscriptionNotification.StreakMonths ?? 1;
@@ -195,6 +195,25 @@ namespace Twitchmata {
 
             return subscriber;
         }
+        internal Models.User UserForEventSubSubscriptionNotification(TwitchLib.EventSub.Core.SubscriptionTypes.Channel.ChannelSubscribe subscriptionNotification)
+        {
+            var subscription = new Models.Subscription();
+            subscription.SubscribedMonthCount = 1;
+            subscription.StreakMonths = 1;
+            subscription.Tier = Subscription.TierForString(subscriptionNotification.Tier);
+            subscription.PlanName = "Channel Subscription (" + subscriptionNotification.BroadcasterUserLogin + ")"; //not present on EventSub notification
+
+
+            Models.User subscriber = null;
+            subscription.IsGift = false;
+            subscriber = this.ExistingOrNewUser(subscriptionNotification.UserId, subscriptionNotification.UserLogin, subscriptionNotification.UserName);
+
+            subscriber.IsSubscriber = true;
+            subscriber.Subscription = subscription;
+
+            return subscriber;
+        }
+
         internal Models.User UserForEventSubSubscriptionGiftNotification(ChannelSubscribe subscriptionNotification, TwitchLib.Api.Helix.Models.Subscriptions.Subscription giftData)
         {
             var subscription = new Models.Subscription();

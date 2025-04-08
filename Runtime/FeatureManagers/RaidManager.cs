@@ -6,6 +6,8 @@ using TwitchLib.PubSub.Events;
 using UnityEngine;
 using TwitchLib.EventSub.Websockets;
 using System.Threading.Tasks;
+using Twitchmata.Models;
+using TwitchLib.Api.Helix.Models.Raids;
 
 namespace Twitchmata {
     /// <summary>
@@ -18,6 +20,9 @@ namespace Twitchmata {
     /// Then override <code>RaidReceived()</code> and add your incoming-raid handling code.
     /// </remarks>
     public class RaidManager : FeatureManager {
+
+        protected OutgoingRaidUpdate? CurrentRaid { get; set; } = null;
+
 
         #region Notifications
         /// <summary>
@@ -141,6 +146,7 @@ namespace Twitchmata {
 
         internal override void InitializeEventSub(EventSubWebsocketClient eventSub)
         {
+            //eventSub.ChannelChatNotification += EventSub_ChannelChatNotification;
             eventSub.ChannelModerate += EventSub_ChannelModerate;
             if (!this.Connection.ChannelModerateSubscribed)
             {
@@ -163,13 +169,62 @@ namespace Twitchmata {
                     Logger.LogError(ex.ToString());
                 });
                 this.Connection.ChannelModerateSubscribed = true;
+                /*var createSub = this.HelixEventSub.CreateEventSubSubscriptionAsync(
+                    "channel.chat.notification",
+                    "1",
+                    new Dictionary<string, string> {
+                    { "broadcaster_user_id", this.Manager.ConnectionManager.ChannelID },
+                    { "user_id", this.Manager.ConnectionManager.ChannelID },
+                    },
+                    this.Connection.EventSub.SessionId,
+                    this.Connection.ConnectionConfig.ClientID,
+                    this.Manager.ConnectionManager.Secrets.AccountAccessToken
+                );
+                TwitchManager.RunTask(createSub, (response) =>
+                {
+                    Logger.LogInfo(this.Connection.EventSub.SessionId);
+                    Logger.LogInfo("channel.chat.notification subscription created.");
+                }, (ex) =>
+                {
+                    Logger.LogError(ex.ToString());
+                });*/
+                this.Connection.ChannelModerateSubscribed = true;
             }
+        }
+
+        private Task EventSub_ChannelChatNotification(object sender, TwitchLib.EventSub.Websockets.Core.EventArgs.Channel.ChannelChatNotificationArgs args)
+        {
+            Logger.LogInfo("Received notification");
+            if (args.Notification.Payload.Event.NoticeType == "raid")
+            {
+                var infoFromArgs = args.Notification.Payload.Event.Raid;
+                this.UserManager.FetchUserWithID(infoFromArgs.UserId, (user) =>
+                {
+                    this.CurrentRaid = new Models.OutgoingRaidUpdate()
+                    {
+                        RaidTarget = user,
+                        TargetProfileImage = user.ProfileImage,
+                        ViewerCount = infoFromArgs.ViewerCount,
+                    };
+                    this.RaidUpdated(this.CurrentRaid.Value);
+                });
+            }
+            else if (args.Notification.Payload.Event.NoticeType == "unraid")
+            {
+                if (this.CurrentRaid.HasValue)
+                {
+                    this.RaidCancelled(this.CurrentRaid.Value);
+                    this.CurrentRaid = null;
+                }
+            }
+            return Task.CompletedTask;
         }
 
         private Task EventSub_ChannelModerate(object sender, TwitchLib.EventSub.Websockets.Core.EventArgs.Channel.ChannelModerateArgs args)
         {
             if(args.Notification.Payload.Event.Action == "raid")
             {
+                Logger.LogInfo("Receiving outgoing raid notification.");
                 var infoFromArgs = args.Notification.Payload.Event.Raid;
                 this.UserManager.FetchUserWithID(infoFromArgs.UserId, (user) =>
                 {
@@ -179,7 +234,10 @@ namespace Twitchmata {
                         TargetProfileImage = user.ProfileImage,
                         ViewerCount = infoFromArgs.ViewerCount,
                     };
-                    this.RaidUpdated(raid);
+                    ThreadDispatcher.Enqueue(() =>
+                    {
+                        this.RaidUpdated(raid);
+                    });
                 });
             } else if(args.Notification.Payload.Event.Action == "unraid")
             {
@@ -192,7 +250,10 @@ namespace Twitchmata {
                         TargetProfileImage = user.ProfileImage,
                         ViewerCount = 0,
                     };
-                    this.RaidCancelled(raid);
+                    ThreadDispatcher.Enqueue(() =>
+                    {
+                        this.RaidCancelled(raid);
+                    });
                 });
             }
             return Task.CompletedTask;

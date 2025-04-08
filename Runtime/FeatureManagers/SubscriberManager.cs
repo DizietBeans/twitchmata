@@ -24,11 +24,16 @@ namespace Twitchmata {
         /// </summary>
         /// <param name="subscriber"></param>
         public virtual void UserSubscribed(Models.User subscriber) {
-            if (subscriber.Subscription.IsGift == true) {
-                Logger.LogInfo($"{subscriber.DisplayName} received gift sub from {subscriber.Subscription.Gifter?.DisplayName ?? "an anonymous gifter"}");
-            } else {
-                Logger.LogInfo($"{subscriber.DisplayName} subscribed");
-            }
+            ThreadDispatcher.Enqueue(delegate {
+                if (subscriber.Subscription.IsGift == true)
+                {
+                    Logger.LogInfo($"{subscriber.DisplayName} received gift sub from {subscriber.Subscription.Gifter?.DisplayName ?? "an anonymous gifter"}");
+                }
+                else
+                {
+                    Logger.LogInfo($"{subscriber.DisplayName} subscribed");
+                }
+            });
         }
         #endregion
 
@@ -336,18 +341,24 @@ namespace Twitchmata {
             var ev = args.Notification.Payload.Event;
             var user = this.UserManager.UserForEventSubSubscriptionMessageNotification(ev);
             this.SubscribersThisStream.Add(user);
-            this.UserSubscribed(user);
+            ThreadDispatcher.Enqueue(() =>
+            {
+                this.UserSubscribed(user);
+            });
+        
             return Task.CompletedTask;
         }
 
         private System.Threading.Tasks.Task EventSub_ChannelSubscribe(object sender, TwitchLib.EventSub.Websockets.Core.EventArgs.Channel.ChannelSubscribeArgs args)
         {
+           
             var ev = args.Notification.Payload.Event;
-            if (ev.IsGift)
+            var user = this.UserManager.UserForEventSubSubscriptionNotification(ev);
+            this.SubscribersThisStream.Add(user);
+            ThreadDispatcher.Enqueue(() =>
             {
-                
-            }
-            
+                this.UserSubscribed(user);
+            });
             return Task.CompletedTask;
         }
 

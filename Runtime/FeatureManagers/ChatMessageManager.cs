@@ -247,8 +247,8 @@ namespace Twitchmata {
                 "channel.chat.message",
                 "1",
                 new Dictionary<string, string> {
-                    { "broadcaster_user_id", this.Manager.ConnectionManager.BotID },
-                    { "user_id", this.Manager.ConnectionManager.BotID }
+                    { "broadcaster_user_id", this.Manager.ConnectionManager.ChannelID },
+                    { "user_id", this.Manager.ConnectionManager.ChannelID }
                 },
                 this.Connection.EventSub.SessionId,
                 this.Connection.ConnectionConfig.ClientID,
