@@ -157,7 +157,7 @@ namespace Twitchmata {
             if (!this.Connection.ChannelModerateSubscribed)
             {
                 var createSub = this.HelixEventSub.CreateEventSubSubscriptionAsync(
-                    "channel.raid.start",
+                    "channel.moderate",
                     "2",
                     new Dictionary<string, string> {
                     { "broadcaster_user_id", this.Manager.ConnectionManager.ChannelID },
