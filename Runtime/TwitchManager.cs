@@ -80,6 +80,8 @@ namespace Twitchmata {
         [Tooltip("Whether to use the local Twitch CLI test server for debugging purposes. Requires a restart after changing.")]
         public bool UseDebugServer = false;
 
+        [Tooltip("Whether to ignore the Start() function on launch in favour of deferred start")]
+        public bool LauchDeferred = false;
 
         public LogLevel LogLevel = LogLevel.Error;
         #endregion
@@ -123,8 +125,22 @@ namespace Twitchmata {
         private bool HasStarted = false;
         private void Start() {
             ThreadDispatcher.EnsureCreated("InvokeInternal");
+            if(this.LauchDeferred)
+            {
+                return;
+            }
             this.HasStarted = true;
             if (this.PersistencePath == null || this.PersistencePath == "") {
+                this.PersistencePath = Application.persistentDataPath;
+            }
+            this.Reset();
+        }
+
+        public void DeferredStart()
+        {
+            this.HasStarted = true;
+            if (this.PersistencePath == null || this.PersistencePath == "")
+            {
                 this.PersistencePath = Application.persistentDataPath;
             }
             this.Reset();
