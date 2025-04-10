@@ -42,7 +42,7 @@ namespace Twitchmata {
                 this.ConnectionManager.Disconnect();
             }
 
-            this.ConnectionManager = new ConnectionManager(this.ConnectionConfig, new Persistence(this.PersistencePath));
+            this.ConnectionManager = new ConnectionManager(this.ConnectionConfig, new Persistence(this.PersistencePath), UseDebugServer);
             this.ConnectionManager.PerformSetup(() => {
                 this.DiscoverFeatureManagers();
                 this.ConnectionManager.Connect();
@@ -76,6 +76,10 @@ namespace Twitchmata {
         /// </remarks>
         [Tooltip("Location of files on disk. Leave blank to use default.")]
         public string PersistencePath;
+
+        [Tooltip("Whether to use the local Twitch CLI test server for debugging purposes. Requires a restart after changing.")]
+        public bool UseDebugServer = false;
+
 
         public LogLevel LogLevel = LogLevel.Error;
         #endregion
@@ -127,6 +131,7 @@ namespace Twitchmata {
         }
 
         private void DiscoverFeatureManagers() {
+            this.ConnectionManager.ChannelModerateSubscribed = false;
             foreach (var manager in this.GetComponentsInChildren<FeatureManager>()) {
                 manager.Manager = this;
                 this.ConnectionManager.RegisterFeatureManager(manager);
@@ -139,9 +144,6 @@ namespace Twitchmata {
             this.ConnectionManager.PerformPostDiscoverySetup();
         }
         #endregion
-
-
-
 
         #region Threading Helpers
         internal static void RunTask<T>(Task<T> func, Action<T> action, Action<Exception> errorAction = null) {

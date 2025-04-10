@@ -13,6 +13,7 @@ using UnityEngine;
 using TwitchLib.EventSub.Websockets;
 using System.Threading.Tasks;
 using TwitchLib.EventSub.Websockets.Core.EventArgs.Channel;
+using System;
 
 namespace Twitchmata {
     public class ChannelPointManager : FeatureManager {
@@ -214,6 +215,11 @@ namespace Twitchmata {
             eventSub.ChannelPointsCustomRewardRedemptionUpdate -= EventSub_ChannelPointsCustomRewardRedemptionUpdate;
             eventSub.ChannelPointsCustomRewardRedemptionUpdate += EventSub_ChannelPointsCustomRewardRedemptionUpdate;
 
+            if (this.Connection.UseDebugServer)
+            {
+                return;
+            }
+
             var createSub = this.HelixEventSub.CreateEventSubSubscriptionAsync(
                 "channel.channel_points_custom_reward_redemption.add",
                 "1",
@@ -252,21 +258,42 @@ namespace Twitchmata {
 
         private Task EventSub_ChannelPointsCustomRewardRedemptionUpdate(object sender, ChannelPointsCustomRewardRedemptionArgs args)
         {
-            var ev = args.Notification.Payload.Event;
-            if (this.ManagedRewardsByID.ContainsKey(ev.Reward.Id) == false)
+            ThreadDispatcher.Enqueue(() =>
             {
-                return Task.CompletedTask;
-            }
-
-            var reward = this.ManagedRewardsByID[ev.Reward.Id];
-            var task = this.HelixAPI.ChannelPoints.GetCustomRewardRedemptionAsync(this.ChannelID, ev.Reward.Id, new List<string>() { ev.Id });
-            TwitchManager.RunTask(task, (obj) => {
-                var responseRedemption = obj.Data[0];
-                var redemption = this.RedemptionFromGetRedemptionResponse(responseRedemption);
-                ThreadDispatcher.Enqueue(() =>
+                try
                 {
-                    reward.HandleRedemption(redemption, responseRedemption.Status);
-                });
+                    var ev = args.Notification.Payload.Event;
+                    if (this.ManagedRewardsByID.ContainsKey(ev.Reward.Id) == false)
+                    {
+                        return;
+                    }
+                    var reward = this.ManagedRewardsByID[ev.Reward.Id];
+                    var task = this.HelixAPI.ChannelPoints.GetCustomRewardRedemptionAsync(this.ChannelID, ev.Reward.Id, new List<string>() { ev.Id });
+                    TwitchManager.RunTask(task, (obj) =>
+                    {
+                        var responseRedemption = obj.Data[0];
+                        var redemption = this.RedemptionFromGetRedemptionResponse(responseRedemption);
+                        ThreadDispatcher.Enqueue(() =>
+                        {
+                            try
+                            {
+                                reward.HandleRedemption(redemption, responseRedemption.Status);
+
+                            }
+                            catch (Exception ex2)
+                            {
+                                Logger.LogError("Error in Userspace: " + ex2.Message + "\n" + ex2.StackTrace);
+                            }
+                        });
+                    }, error =>
+                    {
+                        Logger.LogError("Error in Twitchmata: " + error.Message + "\n" + error.StackTrace);
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError("Error in Twitchmata: " + ex.Message + "\n" + ex.StackTrace);
+                }
             });
             return Task.CompletedTask;
         }

@@ -148,10 +148,16 @@ namespace Twitchmata {
         {
             //eventSub.ChannelChatNotification += EventSub_ChannelChatNotification;
             eventSub.ChannelModerate += EventSub_ChannelModerate;
+
+            if (this.Connection.UseDebugServer)
+            {
+                return;
+            }
+
             if (!this.Connection.ChannelModerateSubscribed)
             {
                 var createSub = this.HelixEventSub.CreateEventSubSubscriptionAsync(
-                    "channel.moderate",
+                    "channel.raid.start",
                     "2",
                     new Dictionary<string, string> {
                     { "broadcaster_user_id", this.Manager.ConnectionManager.ChannelID },
@@ -222,40 +228,84 @@ namespace Twitchmata {
 
         private Task EventSub_ChannelModerate(object sender, TwitchLib.EventSub.Websockets.Core.EventArgs.Channel.ChannelModerateArgs args)
         {
-            if(args.Notification.Payload.Event.Action == "raid")
+            ThreadDispatcher.Enqueue(() =>
             {
-                Logger.LogInfo("Receiving outgoing raid notification.");
-                var infoFromArgs = args.Notification.Payload.Event.Raid;
-                this.UserManager.FetchUserWithID(infoFromArgs.UserId, (user) =>
+                try
                 {
-                    var raid = new Models.OutgoingRaidUpdate()
+                    if (args.Notification.Payload.Event.Action == "raid")
                     {
-                        RaidTarget = user,
-                        TargetProfileImage = user.ProfileImage,
-                        ViewerCount = infoFromArgs.ViewerCount,
-                    };
-                    ThreadDispatcher.Enqueue(() =>
+                        Logger.LogInfo("Receiving outgoing raid notification.");
+                        var infoFromArgs = args.Notification.Payload.Event.Raid;
+                        this.UserManager.FetchUserWithID(infoFromArgs.UserId, (user) =>
+                        {
+                            try
+                            {
+                                var raid = new Models.OutgoingRaidUpdate()
+                                {
+                                    RaidTarget = user,
+                                    TargetProfileImage = user.ProfileImage,
+                                    ViewerCount = infoFromArgs.ViewerCount,
+                                };
+                                ThreadDispatcher.Enqueue(() =>
+                                {
+                                    try
+                                    {
+                                        this.RaidUpdated(raid);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        Logger.LogError("Error in Userspace: " + ex.Message + "\n" + ex.StackTrace);
+                                    }
+                                });
+                            }
+                            catch (Exception ex)
+                            {
+                                Logger.LogError("Error in Twitchmata: " + ex.Message + "\n" + ex.StackTrace);
+                            }
+                        }, ex =>
+                        {
+                            Logger.LogError("Error in Twitchmata: " + ex.Message + "\n" + ex.StackTrace);
+                        });
+                    }
+                    else if (args.Notification.Payload.Event.Action == "unraid")
                     {
-                        this.RaidUpdated(raid);
-                    });
-                });
-            } else if(args.Notification.Payload.Event.Action == "unraid")
-            {
-                var infoFromArgs = args.Notification.Payload.Event.Unraid;
-                this.UserManager.FetchUserWithID(infoFromArgs.UserId, (user) =>
+                        var infoFromArgs = args.Notification.Payload.Event.Unraid;
+                        this.UserManager.FetchUserWithID(infoFromArgs.UserId, (user) =>
+                        {
+                            try { 
+                                var raid = new Models.OutgoingRaidUpdate()
+                                {
+                                    RaidTarget = user,
+                                    TargetProfileImage = user.ProfileImage,
+                                    ViewerCount = 0,
+                                };
+                                ThreadDispatcher.Enqueue(() =>
+                                {
+                                    try
+                                    {
+                                        this.RaidCancelled(raid);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        Logger.LogError("Error in Userspace: " + ex.Message + "\n" + ex.StackTrace);
+                                    }
+                                });
+                            }
+                            catch (Exception ex)
+                            {
+                                Logger.LogError("Error in Twitchmata: " + ex.Message + "\n" + ex.StackTrace);
+                            }
+                        }, ex =>
+                        {
+                            Logger.LogError("Error in Twitchmata: " + ex.Message + "\n" + ex.StackTrace);
+                        });
+                    }
+                }
+                catch (Exception ex)
                 {
-                    var raid = new Models.OutgoingRaidUpdate()
-                    {
-                        RaidTarget = user,
-                        TargetProfileImage = user.ProfileImage,
-                        ViewerCount = 0,
-                    };
-                    ThreadDispatcher.Enqueue(() =>
-                    {
-                        this.RaidCancelled(raid);
-                    });
-                });
-            }
+                    Logger.LogError("Error in Twitchmata: " + ex.Message + "\n" + ex.StackTrace);
+                }
+            });
             return Task.CompletedTask;
         }
 

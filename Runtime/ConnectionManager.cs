@@ -82,14 +82,17 @@ namespace Twitchmata {
 
         internal UserManager UserManager { get; private set; }
         internal Persistence Secrets { get; private set; }
+        public bool UseDebugServer { get; }
 
-        internal ConnectionManager(ConnectionConfig connectionConfig, Persistence secrets) {
+        internal ConnectionManager(ConnectionConfig connectionConfig, Persistence secrets, bool useDebugServer) {
             this.ConnectionConfig = connectionConfig;
             this.Secrets = secrets;
+            this.UseDebugServer = useDebugServer;
             this.SetupAPI();
             this.SetupEventSub();
             this.SetupClient();
             this.UserManager = new UserManager(this);
+            
         }
 
         private void SetupClient() {
@@ -99,7 +102,14 @@ namespace Twitchmata {
         }
         private void SetupEventSub()
         {
-            this.EventSub = new EventSubWebsocketClient(/*"ws://localhost:8080/ws"*/);
+            if (this.UseDebugServer)
+            {
+                this.EventSub = new EventSubWebsocketClient("ws://localhost:8080/ws");
+            }
+            else
+            {
+                this.EventSub = new EventSubWebsocketClient();
+            }
             this.EventSub.WebsocketConnected += EventSub_WebsocketConnected;
             this.EventSub.WebsocketDisconnected += EventSub_WebsocketDisconnected;
             this.EventSub.WebsocketReconnected += EventSub_WebsocketReconnected;
@@ -177,6 +187,7 @@ namespace Twitchmata {
             Logger.LogInfo("EventSub connected.");
             if (!args.IsRequestedReconnect)
             {
+                this.ChannelModerateSubscribed = false;
                 foreach (FeatureManager manager in this.FeatureManagers)
                 {
                     manager.InitializeEventSub(this.EventSub);

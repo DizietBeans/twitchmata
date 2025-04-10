@@ -6,6 +6,7 @@ using TwitchLib.EventSub.Websockets;
 using TwitchLib.EventSub.Websockets.Core.Models;
 using TwitchLib.EventSub.Websockets.Handler.Channel.Follows;
 using TwitchLib.PubSub.Events;
+using TwitchLib.PubSub.Models.Responses.Messages.Redemption;
 using TwitchLib.Unity;
 
 namespace Twitchmata {
@@ -79,7 +80,10 @@ namespace Twitchmata {
         {
             eventSub.ChannelFollow -= EventSub_ChannelFollow;
             eventSub.ChannelFollow += EventSub_ChannelFollow;
-
+            if (this.Connection.UseDebugServer)
+            {
+                return;
+            }
             var createSub = this.HelixEventSub.CreateEventSubSubscriptionAsync(
                 "channel.follow",
                 "2",
@@ -102,11 +106,24 @@ namespace Twitchmata {
 
         private System.Threading.Tasks.Task EventSub_ChannelFollow(object sender, TwitchLib.EventSub.Websockets.Core.EventArgs.Channel.ChannelFollowArgs args)
         {
-            var user = this.UserManager.UserForEventSubFollowNotification(args.Notification.Payload.Event);
-            this.FollowsThisStream.Add(user);
             ThreadDispatcher.Enqueue(() =>
             {
-                this.UserFollowed(user);
+                try { 
+                    var user = this.UserManager.UserForEventSubFollowNotification(args.Notification.Payload.Event);
+                    this.FollowsThisStream.Add(user);
+                    try
+                    {
+                        this.UserFollowed(user);
+                    }
+                    catch (Exception ex2)
+                    {
+                        Logger.LogError("Error in Userspace: " + ex2.Message + "\n" + ex2.StackTrace);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError("Error in Twitchmata: " + ex.Message + "\n" + ex.StackTrace);
+                }
             });
             return Task.CompletedTask;
         }

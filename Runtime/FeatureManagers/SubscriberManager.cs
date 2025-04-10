@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using TwitchLib.EventSub.Websockets.Handler.Channel.Subscription;
 using TwitchLib.EventSub.Core.Models.Subscriptions;
 using TwitchLib.Unity;
+using System;
 
 
 namespace Twitchmata {
@@ -24,16 +25,14 @@ namespace Twitchmata {
         /// </summary>
         /// <param name="subscriber"></param>
         public virtual void UserSubscribed(Models.User subscriber) {
-            ThreadDispatcher.Enqueue(delegate {
-                if (subscriber.Subscription.IsGift == true)
-                {
-                    Logger.LogInfo($"{subscriber.DisplayName} received gift sub from {subscriber.Subscription.Gifter?.DisplayName ?? "an anonymous gifter"}");
-                }
-                else
-                {
-                    Logger.LogInfo($"{subscriber.DisplayName} subscribed");
-                }
-            });
+            if (subscriber.Subscription.IsGift == true)
+            {
+                Logger.LogInfo($"{subscriber.DisplayName} received gift sub from {subscriber.Subscription.Gifter?.DisplayName ?? "an anonymous gifter"}");
+            }
+            else
+            {
+                Logger.LogInfo($"{subscriber.DisplayName} subscribed");
+            }
         }
         #endregion
 
@@ -220,59 +219,18 @@ namespace Twitchmata {
 
         #region Internal
 
-        internal override void InitializeClient(Client client)
-        {
-            client.OnGiftedSubscription += Client_OnGiftedSubscription;
-        }
-
-        private void Client_OnGiftedSubscription(object sender, TwitchLib.Client.Events.OnGiftedSubscriptionArgs e)
-        {
-            this.UserManager.FetchUserWithID(e.GiftedSubscription.UserId, (gifter) =>
-            {
-                this.UserManager.FetchUserWithID(e.GiftedSubscription.MsgParamRecipientId, (user) =>
-                {
-                    this.SubscribersThisStream.Add(gifter);
-                    user.Subscription = new Models.Subscription();
-                    int months = 1;
-                    if (!int.TryParse(e.GiftedSubscription.MsgParamMonths, out months))
-                    {
-                        months = 1;
-                    }
-                    user.Subscription.SubscribedMonthCount = months;
-                    user.Subscription.IsGift = true;
-                    user.Subscription.Gifter = gifter;
-                    switch (e.GiftedSubscription.MsgParamSubPlan) {
-                        case TwitchLib.Client.Enums.SubscriptionPlan.Tier1:
-                            user.Subscription.Tier = SubscriptionTier.Tier1; 
-                            break;
-                        case TwitchLib.Client.Enums.SubscriptionPlan.Tier2:
-                            user.Subscription.Tier = SubscriptionTier.Tier2;
-                            break;
-                        case TwitchLib.Client.Enums.SubscriptionPlan.Tier3:
-                            user.Subscription.Tier = SubscriptionTier.Tier3;
-                            break;
-                        case TwitchLib.Client.Enums.SubscriptionPlan.Prime:
-                            user.Subscription.Tier = SubscriptionTier.Prime;
-                            break;
-                        default:
-                            user.Subscription.Tier = SubscriptionTier.NotSet;
-                            break;
-                    }
-                    user.Subscription.PlanName = e.GiftedSubscription.MsgParamSubPlanName;
-                    this.SubscribersThisStream.Add(user);
-                    this.UserSubscribed(user);
-                });
-            });
-        }
-
         internal override void InitializeEventSub(EventSubWebsocketClient eventSub)
         {
+
             eventSub.ChannelSubscriptionMessage -= EventSub_ChannelSubscriptionMessage;
             eventSub.ChannelSubscriptionMessage += EventSub_ChannelSubscriptionMessage;
             eventSub.ChannelSubscribe -= EventSub_ChannelSubscribe;
             eventSub.ChannelSubscribe += EventSub_ChannelSubscribe;
-            //eventSub.ChannelSubscriptionGift -= EventSub_ChannelSubscriptionGift;
-            //eventSub.ChannelSubscriptionGift += EventSub_ChannelSubscriptionGift;
+
+            if (this.Connection.UseDebugServer)
+            {
+                return;
+            }
 
             var createSub = this.HelixEventSub.CreateEventSubSubscriptionAsync(
                 "channel.subscription.message",
@@ -309,41 +267,28 @@ namespace Twitchmata {
             {
                 Logger.LogError(ex.ToString());
             });
-
-            /*var createSub3 = this.HelixEventSub.CreateEventSubSubscriptionAsync(
-                "channel.subscription.gift",
-                "1",
-                new Dictionary<string, string> {
-                    { "broadcaster_user_id", this.Manager.ConnectionManager.ChannelID },
-                },
-                this.Connection.EventSub.SessionId,
-                this.Connection.ConnectionConfig.ClientID,
-                this.Manager.ConnectionManager.Secrets.AccountAccessToken
-            );
-            TwitchManager.RunTask(createSub3, (response) =>
-            {
-                Logger.LogInfo("channel.subscription.gift subscription created.");
-            }, (ex) =>
-            {
-                Logger.LogError(ex.ToString());
-            });*/
-        }
-
-        private Task EventSub_ChannelSubscriptionGift(object sender, TwitchLib.EventSub.Websockets.Core.EventArgs.Channel.ChannelSubscriptionGiftArgs args)
-        {
-            var ev = args.Notification.Payload.Event;
-            Logger.LogInfo(ev.UserLogin + " just gave " + ev.Total.ToString() + " gifts.");
-            return Task.CompletedTask;
         }
 
         private System.Threading.Tasks.Task EventSub_ChannelSubscriptionMessage(object sender, TwitchLib.EventSub.Websockets.Core.EventArgs.Channel.ChannelSubscriptionMessageArgs args)
         {
-            var ev = args.Notification.Payload.Event;
-            var user = this.UserManager.UserForEventSubSubscriptionMessageNotification(ev);
-            this.SubscribersThisStream.Add(user);
             ThreadDispatcher.Enqueue(() =>
             {
-                this.UserSubscribed(user);
+                try { 
+                    var ev = args.Notification.Payload.Event;
+                    var user = this.UserManager.UserForEventSubSubscriptionMessageNotification(ev);
+                    this.SubscribersThisStream.Add(user);
+                    try { 
+                        this.UserSubscribed(user);
+                    }
+                    catch (Exception ex2)
+                    {
+                        Logger.LogError("Error in Userspace: " + ex2.Message + "\n" + ex2.StackTrace);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError("Error in Twitchmata: " + ex.Message + "\n" + ex.StackTrace);
+                }
             });
         
             return Task.CompletedTask;
@@ -351,14 +296,65 @@ namespace Twitchmata {
 
         private System.Threading.Tasks.Task EventSub_ChannelSubscribe(object sender, TwitchLib.EventSub.Websockets.Core.EventArgs.Channel.ChannelSubscribeArgs args)
         {
-           
-            var ev = args.Notification.Payload.Event;
-            var user = this.UserManager.UserForEventSubSubscriptionNotification(ev);
-            this.SubscribersThisStream.Add(user);
             ThreadDispatcher.Enqueue(() =>
             {
-                this.UserSubscribed(user);
+                try { 
+                    var ev = args.Notification.Payload.Event;
+
+                    if (!ev.IsGift)
+                    {
+                        return;
+                    }
+
+                    var user = this.UserManager.UserForEventSubSubscriptionNotification(ev);
+                    this.SubscribersThisStream.Add(user);
+
+                    TwitchManager.RunTask(this.HelixAPI.Subscriptions.GetUserSubscriptionsAsync(this.ChannelID, new List<string> { user.UserId }), response =>
+                    {
+                        try { 
+                            if (response.Data.Length > 0)
+                            {
+                                if (!string.IsNullOrEmpty(response.Data[0].GifterLogin))
+                                {
+                                    user.Subscription.Gifter = new User(response.Data[0].GiftertId, response.Data[0].GifterLogin, response.Data[0].GifterName);
+                                    this.GiftersThisStream.Add(user.Subscription.Gifter);
+                                }
+                                else
+                                {
+                                    user.Subscription.IsGift = false;
+                                }
+                            }
+                            else
+                            {
+                                user.Subscription.IsGift = false;
+                            }
+                            ThreadDispatcher.Enqueue(() =>
+                            {
+                                try
+                                {
+                                    this.UserSubscribed(user);
+                                }
+                                catch (Exception ex2)
+                                {
+                                    Logger.LogError("Error in Userspace: " + ex2.Message + "\n" + ex2.StackTrace);
+                                }
+                            });
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.LogError("Error in Twitchmata: " + ex.Message + "\n" + ex.StackTrace);
+                        }
+                    }, error =>
+                    {
+                        Logger.LogError("Error in Twitchmata: " + error.Message + "\n" + error.StackTrace);
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError("Error in Twitchmata: " + ex.Message + "\n" + ex.StackTrace);
+                }
             });
+
             return Task.CompletedTask;
         }
 

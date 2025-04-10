@@ -59,7 +59,7 @@ namespace Twitchmata {
         /// </summary>
         /// <param name="userId">The ID of the user to fetch</param>
         /// <param name="action">An action that accepts the user (or null if an error occured)</param>
-        public void FetchUserWithID(string userId, Action<Models.User> action) {
+        public void FetchUserWithID(string userId, Action<Models.User> action, Action<Exception> errorAction = null) {
             var task = this.ConnectionManager.API.Helix.Users.GetUsersAsync(new List<string> { userId });
             TwitchManager.RunTask(task, obj => {
                 var users = obj.Users;
@@ -70,7 +70,7 @@ namespace Twitchmata {
                 var user = this.ExistingOrNewUser(users[0].Id, users[0].Login, users[0].DisplayName);
                 user.ProfileImage = users[0].ProfileImageUrl;
                 action.Invoke(user);
-            });
+            }, errorAction);
         }
 
         /// <summary>
@@ -185,7 +185,6 @@ namespace Twitchmata {
             subscription.Tier = Subscription.TierForString(subscriptionNotification.Tier);
             subscription.PlanName = "Channel Subscription (" + subscriptionNotification.BroadcasterUserLogin + ")"; //not present on EventSub notification
 
-
             Models.User subscriber = null;
             subscription.IsGift = false;
             subscriber = this.ExistingOrNewUser(subscriptionNotification.UserId, subscriptionNotification.UserLogin, subscriptionNotification.UserName);
@@ -205,7 +204,7 @@ namespace Twitchmata {
 
 
             Models.User subscriber = null;
-            subscription.IsGift = false;
+            subscription.IsGift = subscriptionNotification.IsGift;
             subscriber = this.ExistingOrNewUser(subscriptionNotification.UserId, subscriptionNotification.UserLogin, subscriptionNotification.UserName);
 
             subscriber.IsSubscriber = true;
