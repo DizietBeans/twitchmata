@@ -48,29 +48,44 @@ namespace Twitchmata {
         /// <summary>
         /// Convenience for adding a managed reward
         /// </summary>
+        public ManagedReward RegisterReward(string title, string description, int cost, RewardRedemptionCallback callback, ManagedRewardGroup group) {
+            return this.RegisterReward(title, description, cost, callback, Permissions.Everyone, true, group);
+        }
+        
+        /// <summary>
+        /// Convenience for adding a managed reward
+        /// </summary>
         public ManagedReward RegisterReward(string title, int cost, RewardRedemptionCallback callback, ManagedRewardGroup group) {
-            return this.RegisterReward(title, cost, callback, Permissions.Everyone, true, group);
+            return this.RegisterReward(title, "", cost, callback, Permissions.Everyone, true, group);
         }
 
         /// <summary>
         /// Convenience for adding a managed reward
         /// </summary>
+        public ManagedReward RegisterReward(string title, string description, int cost, RewardRedemptionCallback callback, bool enabled) {
+            return this.RegisterReward(title, description, cost, callback, Permissions.Everyone, enabled);
+        }
+        
+        /// <summary>
+        /// Convenience for adding a managed reward
+        /// </summary>
         public ManagedReward RegisterReward(string title, int cost, RewardRedemptionCallback callback, bool enabled) {
-            return this.RegisterReward(title, cost, callback, Permissions.Everyone, enabled);
+            return this.RegisterReward(title, "", cost, callback, Permissions.Everyone, enabled);
         }
 
         /// <summary>
         /// Convenience for adding a managed reward
         /// </summary>
         /// <param name="title">The reward title (must be unique)</param>
+        /// <param name="description">the reward Description. Max 200 Characters</param>
         /// <param name="cost">The channel point cost of the reward</param>
         /// <param name="callback">A method to call when the reward is invoked</param>
         /// <param name="permissions">The permissions of the reward (defaults to Everyone)</param>
         /// <param name="enabled">The enabled state of the reward (defaults to true)</param>
         /// <param name="group">The group to place the reward in (defaults to null)</param>
         /// <returns>A newly created and registered reward</returns>
-        public ManagedReward RegisterReward(string title, int cost, RewardRedemptionCallback callback, Permissions permissions = Permissions.Everyone, bool enabled = true, ManagedRewardGroup group = null) {
-            var reward = new ManagedReward(title, cost, permissions, enabled);
+        public ManagedReward RegisterReward(string title, string description, int cost, RewardRedemptionCallback callback, Permissions permissions = Permissions.Everyone, bool enabled = true, ManagedRewardGroup group = null) {
+            var reward = new ManagedReward(title, description, cost, permissions, enabled);
             if (group != null) {
                 group.AddReward(reward);
             }
