@@ -181,7 +181,7 @@ namespace Twitchmata
                 TopContributions = ev.TopContributions.OfType<HypeTrainContribution>().ToList()
             };
             StartedAt = ev.StartedAt;
-            EndedAt = DateTime.MinValue;
+            EndedAt = ev.ExpiresAt;
             HypeTrainTopContributors.Add(payload.LastContribution);
             HypeTrainContributors = payload.TopContributions;
             LastContribution = payload.LastContribution;
