@@ -100,6 +100,7 @@ namespace Twitchmata {
             "user:manage:whispers",
             "channel:read:subscriptions",
             "channel:read:vips",
+            "channel:read:hype_train",
             "channel:manage:raids",
             "channel:moderate",
             "channel:manage:redemptions",

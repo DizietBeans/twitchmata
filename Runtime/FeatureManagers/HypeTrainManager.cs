@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using TwitchLib.Api.Helix.Models.HypeTrain;
 using TwitchLib.EventSub.Websockets;
 using TwitchLib.EventSub.Websockets.Core.EventArgs.Channel;
+using TwitchLib.Unity;
 using Twitchmata.Models;
 using HypeTrainContribution = TwitchLib.EventSub.Core.Models.HypeTrain.HypeTrainContribution;
 
@@ -165,64 +166,111 @@ namespace Twitchmata
         
         private Task EventSub_ChannelHypeTrainBegin(object sender, ChannelHypeTrainBeginArgs args)
         {
-            // Reset Contributor Lists before filling it with new HypeTrain data
-            HypeTrainContributors.Clear();
-            HypeTrainTopContributors.Clear();
-            
-            var ev = args.Notification.Payload.Event;
-            var payload = new HypeTrainPayload()
+            ThreadDispatcher.Enqueue(() =>
             {
-                StartedAt = ev.StartedAt,
-                ExpiresAt = ev.ExpiresAt,
-                Goal = ev.Goal,
-                Level = ev.Level,
-                Progress = ev.Progress,
-                LastContribution = ev.LastContribution,
-                TopContributions = ev.TopContributions.OfType<HypeTrainContribution>().ToList()
-            };
-            StartedAt = ev.StartedAt;
-            EndedAt = ev.ExpiresAt;
-            HypeTrainTopContributors.Add(payload.LastContribution);
-            HypeTrainContributors = payload.TopContributions;
-            LastContribution = payload.LastContribution;
-            TotalHypeTrainPoints = payload.Total;
-            HypeTrainLevel = payload.Level;
-            
-            HypeTrainBegins(payload);
+                try
+                {
+                    // Reset Contributor Lists before filling it with new HypeTrain data
+                    HypeTrainContributors.Clear();
+                    HypeTrainTopContributors.Clear();
+
+                    var ev = args.Notification.Payload.Event;
+                    var payload = new HypeTrainPayload()
+                    {
+                        StartedAt = ev.StartedAt,
+                        ExpiresAt = ev.ExpiresAt,
+                        Goal = ev.Goal,
+                        Level = ev.Level,
+                        Progress = ev.Progress,
+                        LastContribution = ev.LastContribution,
+                        TopContributions = ev.TopContributions.OfType<HypeTrainContribution>().ToList()
+                    };
+                    StartedAt = ev.StartedAt;
+                    EndedAt = ev.ExpiresAt;
+                    HypeTrainTopContributors.Add(payload.LastContribution);
+                    HypeTrainContributors = payload.TopContributions;
+                    LastContribution = payload.LastContribution;
+                    TotalHypeTrainPoints = payload.Total;
+                    HypeTrainLevel = payload.Level;
+
+                    try
+                    {
+                        HypeTrainBegins(payload);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogError("Error in userspace: " + ex.Message + "\n" + ex.StackTrace);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError("Error in Twitchmata: " + ex.Message + "\n" + ex.StackTrace);
+                }
+            });
             return Task.CompletedTask;
         }
         private Task EventSub_ChannelHypeTrainProgress(object sender, ChannelHypeTrainProgressArgs args)
         {
-            var ev = args.Notification.Payload.Event;
-            var payload = new HypeTrainPayload()
+            ThreadDispatcher.Enqueue(() =>
             {
-                StartedAt = ev.StartedAt,
-                ExpiresAt = ev.ExpiresAt,
-                Goal = ev.Goal,
-                Level = ev.Level,
-                Progress = ev.Progress,
-                LastContribution = ev.LastContribution,
-                TopContributions = ev.TopContributions.OfType<HypeTrainContribution>().ToList()
-            };
-            HypeTrainTopContributors.Add(payload.LastContribution);
-            HypeTrainContributors = payload.TopContributions;
-            LastContribution = payload.LastContribution;
-            TotalHypeTrainPoints = payload.Total;
-            HypeTrainLevel = payload.Level;
-            
-            HypeTrainProgressed(payload);
+                try { 
+                    var ev = args.Notification.Payload.Event;
+                    var payload = new HypeTrainPayload()
+                    {
+                        StartedAt = ev.StartedAt,
+                        ExpiresAt = ev.ExpiresAt,
+                        Goal = ev.Goal,
+                        Level = ev.Level,
+                        Progress = ev.Progress,
+                        LastContribution = ev.LastContribution,
+                        TopContributions = ev.TopContributions.OfType<HypeTrainContribution>().ToList()
+                    };
+                    HypeTrainTopContributors.Add(payload.LastContribution);
+                    HypeTrainContributors = payload.TopContributions;
+                    LastContribution = payload.LastContribution;
+                    TotalHypeTrainPoints = payload.Total;
+                    HypeTrainLevel = payload.Level;
+                    try { 
+                        HypeTrainProgressed(payload);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogError("Error in userspace: " + ex.Message + "\n" + ex.StackTrace);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError("Error in Twitchmata: " + ex.Message + "\n" + ex.StackTrace);
+                }
+            });
             return Task.CompletedTask;
         }
 
         private Task EventSub_ChannelHypeTrainEnd(object sender, ChannelHypeTrainEndArgs args)
         {
-            var ev = args.Notification.Payload.Event;
-            EndedAt = ev.EndedAt;
-            HypeTrainTopContributors = ev.TopContributions.OfType<HypeTrainContribution>().ToList();
-            HypeTrainLevel = ev.Level;
-            TotalHypeTrainPoints = ev.Total;
-            
-            HypeTrainCompleted();
+            ThreadDispatcher.Enqueue(() =>
+            {
+                try { 
+                    var ev = args.Notification.Payload.Event;
+                    EndedAt = ev.EndedAt;
+                    HypeTrainTopContributors = ev.TopContributions.OfType<HypeTrainContribution>().ToList();
+                    HypeTrainLevel = ev.Level;
+                    TotalHypeTrainPoints = ev.Total;
+
+                    try
+                    {
+                        HypeTrainCompleted();
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogError("Error in userspace: " + ex.Message + "\n" + ex.StackTrace);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError("Error in Twitchmata: " + ex.Message + "\n" + ex.StackTrace);
+                }
+            });
             return Task.CompletedTask;
         }
         #endregion
