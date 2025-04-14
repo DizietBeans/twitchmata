@@ -328,17 +328,14 @@ namespace Twitchmata {
                             {
                                 user.Subscription.IsGift = false;
                             }
-                            ThreadDispatcher.Enqueue(() =>
+                            try
                             {
-                                try
-                                {
-                                    this.UserSubscribed(user);
-                                }
-                                catch (Exception ex2)
-                                {
-                                    Logger.LogError("Error in Userspace: " + ex2.Message + "\n" + ex2.StackTrace);
-                                }
-                            });
+                                this.UserSubscribed(user);
+                            }
+                            catch (Exception ex2)
+                            {
+                                Logger.LogError("Error in Userspace: " + ex2.Message + "\n" + ex2.StackTrace);
+                            }
                         }
                         catch (Exception ex)
                         {
