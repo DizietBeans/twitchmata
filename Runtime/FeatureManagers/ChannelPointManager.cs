@@ -14,6 +14,7 @@ using TwitchLib.EventSub.Websockets;
 using System.Threading.Tasks;
 using TwitchLib.EventSub.Websockets.Core.EventArgs.Channel;
 using System;
+using Twitchmata.Adapters;
 
 namespace Twitchmata {
     public class ChannelPointManager : FeatureManager {
@@ -207,13 +208,13 @@ namespace Twitchmata {
 
         #region Internal
 
-        internal override void InitializeEventSub(Twitchmata.Adapters.EventSubWebsocketClient eventSub)
+        internal override void InitializeEventSub(ExtendedEventSubWebsocketClient eventSub)
         {
-            eventSub.ChannelPointsCustomRewardRedemptionAdd -= EventSub_ChannelPointsCustomRewardRedemptionAdd;
-            eventSub.ChannelPointsCustomRewardRedemptionAdd += EventSub_ChannelPointsCustomRewardRedemptionAdd;
+            eventSub.RawClient.ChannelPointsCustomRewardRedemptionAdd -= EventSub_ChannelPointsCustomRewardRedemptionAdd;
+            eventSub.RawClient.ChannelPointsCustomRewardRedemptionAdd += EventSub_ChannelPointsCustomRewardRedemptionAdd;
 
-            eventSub.ChannelPointsCustomRewardRedemptionUpdate -= EventSub_ChannelPointsCustomRewardRedemptionUpdate;
-            eventSub.ChannelPointsCustomRewardRedemptionUpdate += EventSub_ChannelPointsCustomRewardRedemptionUpdate;
+            eventSub.RawClient.ChannelPointsCustomRewardRedemptionUpdate -= EventSub_ChannelPointsCustomRewardRedemptionUpdate;
+            eventSub.RawClient.ChannelPointsCustomRewardRedemptionUpdate += EventSub_ChannelPointsCustomRewardRedemptionUpdate;
 
             if (this.Connection.UseDebugServer)
             {
@@ -258,6 +259,7 @@ namespace Twitchmata {
 
         private Task EventSub_ChannelPointsCustomRewardRedemptionUpdate(object sender, ChannelPointsCustomRewardRedemptionArgs args)
         {
+            Logger.LogInfo("RECEIVED REWARD");
             ThreadDispatcher.Enqueue(() =>
             {
                 try

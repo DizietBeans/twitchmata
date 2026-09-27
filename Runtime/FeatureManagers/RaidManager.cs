@@ -8,6 +8,7 @@ using TwitchLib.EventSub.Websockets;
 using System.Threading.Tasks;
 using Twitchmata.Models;
 using TwitchLib.Api.Helix.Models.Raids;
+using Twitchmata.Adapters;
 
 namespace Twitchmata {
     /// <summary>
@@ -144,10 +145,10 @@ namespace Twitchmata {
 
         #endregion
 
-        internal override void InitializeEventSub(Twitchmata.Adapters.EventSubWebsocketClient eventSub)
+        internal override void InitializeEventSub(ExtendedEventSubWebsocketClient eventSub)
         {
             //eventSub.ChannelChatNotification += EventSub_ChannelChatNotification;
-            eventSub.ChannelModerate += EventSub_ChannelModerate;
+            eventSub.RawClient.ChannelModerate += EventSub_ChannelModerate;
 
             if (this.Connection.UseDebugServer)
             {

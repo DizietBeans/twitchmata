@@ -3,7 +3,7 @@
 namespace Twitchmata { 
     internal class Logger {
         internal static TwitchManager TwitchManager;
-        internal static string version = "1.3.13";
+        internal static string version = "1.4.1-experimental";
 
         internal static Logger Instance = new Logger();
 

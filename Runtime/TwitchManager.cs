@@ -62,7 +62,7 @@ namespace Twitchmata {
             ChannelName = "",
             BotName = "",
             PostConnectMessage = false,
-            ConnectMessage =  "Twichmata connected!"
+            ConnectMessage =  "Twitchmata connected!"
         };
 
         /// <summary>

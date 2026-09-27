@@ -8,6 +8,7 @@ using TwitchLib.EventSub.Websockets.Handler.Channel.Follows;
 using TwitchLib.PubSub.Events;
 using TwitchLib.PubSub.Models.Responses.Messages.Redemption;
 using TwitchLib.Unity;
+using Twitchmata.Adapters;
 
 namespace Twitchmata {
     /// <summary>
@@ -65,7 +66,7 @@ namespace Twitchmata {
             var argString = Newtonsoft.Json.JsonConvert.SerializeObject(arg);
             var test = Newtonsoft.Json.JsonConvert.DeserializeObject<EventSubNotification<ChannelFollow>>(argString);
             var handler = new ChannelFollowHandler();
-            handler.Handle(this.Connection.EventSub, argString);
+            handler.Handle(this.Connection.EventSub.RawClient, argString);
         }
         #endregion
 
@@ -76,10 +77,10 @@ namespace Twitchmata {
 
         #region Internal
 
-        internal override void InitializeEventSub(Twitchmata.Adapters.EventSubWebsocketClient eventSub)
+        internal override void InitializeEventSub(ExtendedEventSubWebsocketClient eventSub)
         {
-            eventSub.ChannelFollow -= EventSub_ChannelFollow;
-            eventSub.ChannelFollow += EventSub_ChannelFollow;
+            eventSub.RawClient.ChannelFollow -= EventSub_ChannelFollow;
+            eventSub.RawClient.ChannelFollow += EventSub_ChannelFollow;
             if (this.Connection.UseDebugServer)
             {
                 return;

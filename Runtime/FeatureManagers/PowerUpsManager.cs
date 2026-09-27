@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using TwitchLib.Unity;
+using Twitchmata.Adapters;
 using Twitchmata.Adapters.Args;
 using Twitchmata.Adapters.Models;
 
@@ -35,8 +36,9 @@ namespace Twitchmata
 
         #region Internal
 
-        internal override void InitializeEventSub(Twitchmata.Adapters.EventSubWebsocketClient eventSub)
+        internal override void InitializeEventSub(ExtendedEventSubWebsocketClient eventSub)
         {
+            Logger.LogInfo("Initialising Power Ups Manager");
             eventSub.PowerUpRedemption -= EventSub_PowerUpRedemption;
             eventSub.PowerUpRedemption += EventSub_PowerUpRedemption;
 
@@ -65,6 +67,7 @@ namespace Twitchmata
 
         private System.Threading.Tasks.Task EventSub_PowerUpRedemption(object sender, PowerUpRedemptionArgs args)
         {
+            Logger.LogInfo("Power Up Redemption Triggered");
             ThreadDispatcher.Enqueue(() => {
                 try
                 {

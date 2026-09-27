@@ -95,7 +95,7 @@ namespace Twitchmata {
         internal void InitializeWithAPIManager(ConnectionManager manager) {
             this.Connection = manager;
             this.InitializeFeatureManager();
-            if (this.Connection.EventSub.SessionId != null)
+            if (this.Connection.EventSub.RawClient.SessionId != null)
             {
                 this.InitializeEventSub(manager.EventSub);
             }
@@ -106,7 +106,7 @@ namespace Twitchmata {
 
         internal virtual void InitializeClient(Client client) { }
 
-        internal virtual void InitializeEventSub(Twitchmata.Adapters.EventSubWebsocketClient eventSub) { }
+        internal virtual void InitializeEventSub(Twitchmata.Adapters.ExtendedEventSubWebsocketClient eventSub) { }
         
         //All feature managers set up by user are guaranteed to exist when this is called
         internal virtual void PerformPostDiscoverySetup() { }

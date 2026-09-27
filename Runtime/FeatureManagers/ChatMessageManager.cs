@@ -1,13 +1,14 @@
+using External.Twitchmata.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using External.Twitchmata.Models;
 using TwitchLib.Api.Helix.Models.Chat;
 using TwitchLib.Client.Events;
 using TwitchLib.Client.Models;
 using TwitchLib.EventSub.Websockets;
+using Twitchmata.Adapters;
 using Twitchmata.Adapters.Models;
 using Twitchmata.Models;
 using UnityEngine;
@@ -237,7 +238,7 @@ namespace Twitchmata {
         private Dictionary<string, RegisteredChatCommand> RegisteredCommands = new Dictionary<string, RegisteredChatCommand>();
 
         //In prep for if we want to replace Chat Bot (IRC Client) as well as PubSub
-        internal override void InitializeEventSub(Twitchmata.Adapters.EventSubWebsocketClient eventSub)
+        internal override void InitializeEventSub(ExtendedEventSubWebsocketClient eventSub)
         {
            /* Logger.LogInfo("Setting up ChatMessageManager with EventSub");
             eventSub.ChannelChatMessage += EventSub_ChannelChatMessage;

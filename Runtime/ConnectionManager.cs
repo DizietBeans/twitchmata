@@ -17,7 +17,7 @@ namespace Twitchmata {
         public Client Client { get; private set; }
         public HelixEventSub HelixEventSub { get; private set; }
 
-        public Twitchmata.Adapters.EventSubWebsocketClient EventSub { get; private set; }
+        public ExtendedEventSubWebsocketClient EventSub { get; private set; }
 
         public ConnectionConfig ConnectionConfig { get; private set; }
 
@@ -42,7 +42,7 @@ namespace Twitchmata {
                 return;
             }
             this.ConnectClient();
-            TwitchManager.RunTask(this.EventSub.ConnectAsync(), (response) =>
+            TwitchManager.RunTask(this.EventSub.RawClient.ConnectAsync(), (response) =>
             {
                 Logger.LogInfo("EventSub websocket connection request complete: " + response.ToString());
             }, (ex) =>
@@ -57,7 +57,7 @@ namespace Twitchmata {
         public void Disconnect() {
             this.manualDisconnectFlag = true;
             this.Client.Disconnect();
-            TwitchManager.RunTask(this.EventSub.DisconnectAsync(), (response) =>
+            TwitchManager.RunTask(this.EventSub.RawClient.DisconnectAsync(), (response) =>
             {
                 Logger.LogInfo("EventSub websocket disconnect request complete: " + response.ToString());
             }, (ex) =>
@@ -119,16 +119,16 @@ namespace Twitchmata {
         {
             if (this.UseDebugServer)
             {
-                this.EventSub = new Twitchmata.Adapters.EventSubWebsocketClient("ws://localhost:8080/ws");
+                this.EventSub = new ExtendedEventSubWebsocketClient(new EventSubWebsocketClient("ws://localhost:8080/ws"));
             }
             else
             {
-                this.EventSub = new Twitchmata.Adapters.EventSubWebsocketClient();
+                this.EventSub = new ExtendedEventSubWebsocketClient(new EventSubWebsocketClient());
             }
-            this.EventSub.WebsocketConnected += EventSub_WebsocketConnected;
-            this.EventSub.WebsocketDisconnected += EventSub_WebsocketDisconnected;
-            this.EventSub.WebsocketReconnected += EventSub_WebsocketReconnected;
-            this.EventSub.ErrorOccurred += EventSub_ErrorOccurred;
+            this.EventSub.RawClient.WebsocketConnected += EventSub_WebsocketConnected;
+            this.EventSub.RawClient.WebsocketDisconnected += EventSub_WebsocketDisconnected;
+            this.EventSub.RawClient.WebsocketReconnected += EventSub_WebsocketReconnected;
+            this.EventSub.RawClient.ErrorOccurred += EventSub_ErrorOccurred;
             this.HelixEventSub = new HelixEventSub(this.API.Settings, BypassLimiter.CreateLimiterBypassInstance(), new TwitchHttpClient());
 
         }
@@ -185,7 +185,7 @@ namespace Twitchmata {
             if (!manualDisconnectFlag)
             {
                 Logger.LogWarning("EventSub disconnected, requires reconnect");
-                TwitchManager.RunTask(this.EventSub.ReconnectAsync(), (response) =>
+                TwitchManager.RunTask(this.EventSub.RawClient.ReconnectAsync(), (response) =>
                 {
                     Logger.LogInfo("EventSub websocket reconnection request complete: " + response.ToString());
                 }, (ex) =>

@@ -49,7 +49,7 @@ namespace Twitchmata {
 
             var jsonString = "{\"metadata\":{\"message_id\":\"pVc1ynC3lY3wGc-9rTWqCj71t9opD8Kt8W1ZPX1nE98=\",\"message_type\":\"notification\",\"message_timestamp\":\"2025-04-08T11:51:06.746502681Z\",\"subscription_type\":\"channel.cheer\",\"subscription_version\":\"1\"},\"payload\":{\"subscription\":{\"id\":\"1d1aaa9f-5dee-4d54-b90b-e03d4ab180a4\",\"status\":\"enabled\",\"type\":\"channel.cheer\",\"version\":\"1\",\"condition\":{\"broadcaster_user_id\":\"504557211\"},\"transport\":{\"method\":\"websocket\",\"session_id\":\"AgoQqBYYYCWiSkaGopzP-7aC9hIGY2VsbC1j\"},\"created_at\":\"2025-04-08T11:43:31.72455349Z\",\"cost\":0},\"event\":{\"broadcaster_user_id\":\"504557211\",\"broadcaster_user_login\":\"dizietbeans\",\"broadcaster_user_name\":\"DizietBeans\",\"is_anonymous\":false,\"user_id\":\"504557211\",\"user_login\":\"testuser\",\"user_name\":\"TestUser\",\"message\":\"Cheer10\",\"bits\":10}}}";
             var handler = new ChannelCheerHandler();
-            handler.Handle(this.Connection.EventSub, jsonString);
+            handler.Handle(this.Connection.EventSub.RawClient, jsonString);
         }
 
         /// <summary>
@@ -80,10 +80,10 @@ namespace Twitchmata {
 
         #region Internal
 
-        internal override void InitializeEventSub(Twitchmata.Adapters.EventSubWebsocketClient eventSub)
+        internal override void InitializeEventSub(Twitchmata.Adapters.ExtendedEventSubWebsocketClient eventSub)
         {
-            eventSub.ChannelCheer -= EventSub_ChannelCheer;
-            eventSub.ChannelCheer += EventSub_ChannelCheer;
+            eventSub.RawClient.ChannelCheer -= EventSub_ChannelCheer;
+            eventSub.RawClient.ChannelCheer += EventSub_ChannelCheer;
             if(this.Connection.UseDebugServer)
             {
                 return;
@@ -94,7 +94,7 @@ namespace Twitchmata {
                 new Dictionary<string, string> {
                     { "broadcaster_user_id", this.Manager.ConnectionManager.ChannelID },
                 },
-                eventSub.SessionId,
+                eventSub.RawClient.SessionId,
                 this.Connection.ConnectionConfig.ClientID,
                 this.Manager.ConnectionManager.Secrets.AccountAccessToken
             );

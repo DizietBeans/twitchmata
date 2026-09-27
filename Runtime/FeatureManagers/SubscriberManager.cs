@@ -6,6 +6,7 @@ using TwitchLib.EventSub.Websockets.Handler.Channel.Subscription;
 using TwitchLib.EventSub.Core.Models.Subscriptions;
 using TwitchLib.Unity;
 using System;
+using Twitchmata.Adapters;
 
 
 namespace Twitchmata {
@@ -108,7 +109,7 @@ namespace Twitchmata {
             };
             var argString = Newtonsoft.Json.JsonConvert.SerializeObject(arg);
             var handler = new ChannelSubscriptionMessageHandler();
-            handler.Handle(this.Connection.EventSub, argString);
+            handler.Handle(this.Connection.EventSub.RawClient, argString);
         }
 
         /// <summary>
@@ -161,7 +162,7 @@ namespace Twitchmata {
             };
             var argString = Newtonsoft.Json.JsonConvert.SerializeObject(arg);
             var handler = new ChannelSubscriptionGiftHandler();
-            handler.Handle(this.Connection.EventSub, argString);
+            handler.Handle(this.Connection.EventSub.RawClient, argString);
         }
         
         /// <summary>
@@ -208,7 +209,7 @@ namespace Twitchmata {
             };
             var argString = Newtonsoft.Json.JsonConvert.SerializeObject(arg);
             var handler = new ChannelSubscriptionGiftHandler();
-            handler.Handle(this.Connection.EventSub, argString);
+            handler.Handle(this.Connection.EventSub.RawClient, argString);
         }
 
         #endregion
@@ -219,13 +220,13 @@ namespace Twitchmata {
 
         #region Internal
 
-        internal override void InitializeEventSub(Twitchmata.Adapters.EventSubWebsocketClient eventSub)
+        internal override void InitializeEventSub(ExtendedEventSubWebsocketClient eventSub)
         {
 
-            eventSub.ChannelSubscriptionMessage -= EventSub_ChannelSubscriptionMessage;
-            eventSub.ChannelSubscriptionMessage += EventSub_ChannelSubscriptionMessage;
-            eventSub.ChannelSubscribe -= EventSub_ChannelSubscribe;
-            eventSub.ChannelSubscribe += EventSub_ChannelSubscribe;
+            eventSub.RawClient.ChannelSubscriptionMessage -= EventSub_ChannelSubscriptionMessage;
+            eventSub.RawClient.ChannelSubscriptionMessage += EventSub_ChannelSubscriptionMessage;
+            eventSub.RawClient.ChannelSubscribe -= EventSub_ChannelSubscribe;
+            eventSub.RawClient.ChannelSubscribe += EventSub_ChannelSubscribe;
 
             if (this.Connection.UseDebugServer)
             {

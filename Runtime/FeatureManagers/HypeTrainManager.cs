@@ -6,6 +6,7 @@ using TwitchLib.Api.Helix.Models.HypeTrain;
 using TwitchLib.EventSub.Websockets;
 using TwitchLib.EventSub.Websockets.Core.EventArgs.Channel;
 using TwitchLib.Unity;
+using Twitchmata.Adapters;
 using Twitchmata.Models;
 using HypeTrainContribution = TwitchLib.EventSub.Core.Models.HypeTrain.HypeTrainContribution;
 
@@ -95,14 +96,14 @@ namespace Twitchmata
          **************************************************/
         #region Internal
 
-        internal override void InitializeEventSub(Twitchmata.Adapters.EventSubWebsocketClient eventSub)
+        internal override void InitializeEventSub(ExtendedEventSubWebsocketClient eventSub)
         {
-            eventSub.ChannelHypeTrainBegin -= EventSub_ChannelHypeTrainBegin;
-            eventSub.ChannelHypeTrainBegin += EventSub_ChannelHypeTrainBegin;
-            eventSub.ChannelHypeTrainEnd -= EventSub_ChannelHypeTrainEnd;
-            eventSub.ChannelHypeTrainEnd += EventSub_ChannelHypeTrainEnd;
-            eventSub.ChannelHypeTrainProgress -= EventSub_ChannelHypeTrainProgress;
-            eventSub.ChannelHypeTrainProgress += EventSub_ChannelHypeTrainProgress;
+            eventSub.RawClient.ChannelHypeTrainBegin -= EventSub_ChannelHypeTrainBegin;
+            eventSub.RawClient.ChannelHypeTrainBegin += EventSub_ChannelHypeTrainBegin;
+            eventSub.RawClient.ChannelHypeTrainEnd -= EventSub_ChannelHypeTrainEnd;
+            eventSub.RawClient.ChannelHypeTrainEnd += EventSub_ChannelHypeTrainEnd;
+            eventSub.RawClient.ChannelHypeTrainProgress -= EventSub_ChannelHypeTrainProgress;
+            eventSub.RawClient.ChannelHypeTrainProgress += EventSub_ChannelHypeTrainProgress;
             
             if (this.Connection.UseDebugServer)
             {
