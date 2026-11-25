@@ -56,7 +56,7 @@
         /// </remarks>
         public User Gifter { get; internal set; }
 
-        public string Message { get; internal set; }
+        public TwitchLib.EventSub.Core.Models.Subscriptions.SubscriptionMessage Message { get; internal set; }
 
         static internal SubscriptionTier TierForString(string tierString) {
             if (tierString == "1000") {
