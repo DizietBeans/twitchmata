@@ -56,6 +56,8 @@
         /// </remarks>
         public User Gifter { get; internal set; }
 
+        public string Message { get; internal set; }
+
         static internal SubscriptionTier TierForString(string tierString) {
             if (tierString == "1000") {
                 return SubscriptionTier.Tier1;

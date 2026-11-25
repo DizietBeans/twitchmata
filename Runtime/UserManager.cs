@@ -184,6 +184,7 @@ namespace Twitchmata {
             subscription.StreakMonths = subscriptionNotification.StreakMonths ?? 1;
             subscription.Tier = Subscription.TierForString(subscriptionNotification.Tier);
             subscription.PlanName = "Channel Subscription (" + subscriptionNotification.BroadcasterUserLogin + ")"; //not present on EventSub notification
+            subscription.Message = subscriptionNotification.Message?.Text;
 
             Models.User subscriber = null;
             subscription.IsGift = false;
